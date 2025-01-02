@@ -6,6 +6,8 @@ from starlette.routing import Route
 from typing_extensions import Generic, Optional
 from pydantic import  Field
 
+from mcmatica_lib import McSqlModelInfo
+
 T = typing.TypeVar("T")
 
 class McFastHTMLTable(Generic[T]):
@@ -44,6 +46,7 @@ class McFastHTMLTable(Generic[T]):
         cols_style: str = ""
         for key in self._db_model.model_fields.keys():
             col: Field = self._db_model.model_fields[key]
+            info: McSqlModelInfo = col.json_schema_extra
             cols.append(ft.Th(ft.Div(ft.A(f"{col.title}",
                                                 hx_get=f"/{self._identity}/sort?field={key}",
                                                 hx_target=f"#{self._identity}-table",
@@ -52,11 +55,16 @@ class McFastHTMLTable(Generic[T]):
                                         ),
                               cls=f"col_{key}", scope="col", **{'data-theme':"dark"})
                         )
+            # cols_style += f"""
+            #     .{self._identity} .col_{key} {{
+            #         width: {col.json_schema_extra['width']}
+            #     }}
+            #     """
             cols_style += f"""
-                .{self._identity} .col_{key} {{
-                    width: {col.json_schema_extra['width']}
-                }}
-                """
+                            .{self._identity} .col_{key} {{
+                                width: {info.width}
+                            }}
+                            """
         th_cols = ft.Tr(*cols)
         return ft.Style(cols_style), ft.Thead( th_cols, id=f"{self._identity}-thead", cls="table-dark")
 
