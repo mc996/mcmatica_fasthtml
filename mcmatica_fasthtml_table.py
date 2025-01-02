@@ -2,19 +2,11 @@ from fasthtml import ft
 from fasthtml import FastHTML
 import typing
 
-from starlette.responses import PlainTextResponse, HTMLResponse
 from starlette.routing import Route
-from starlette.types import Scope, Receive, Send
 from typing_extensions import Generic, Optional
 from pydantic import  Field
-from websockets.http11 import Request
-
-#from starlette.routing import Route
 
 T = typing.TypeVar("T")
-
-
-
 
 class McFastHTMLTable(Generic[T]):
     _db_model: T = None
