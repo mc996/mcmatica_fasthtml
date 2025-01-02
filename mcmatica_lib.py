@@ -28,7 +28,7 @@ class SqlModelInfo:
     required: bool = field(default=False)
     width: str = field(default="100%")
     def dict(self):
-        return {k: str(v) for k, v in asdict(self).items()}
+        return dict(json_schema_extra={k: str(v) for k, v in asdict(self).items()})
     
     def build_selection_list(self, selection_list: typing.List[any]) -> object:
         self.sel_list = selection_list

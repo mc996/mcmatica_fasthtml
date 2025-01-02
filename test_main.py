@@ -16,11 +16,14 @@ class Hero(SQLModel, table=False):
     name: str = Field(title="Nome",schema_extra=dict(json_schema_extra={"width":"300px"}))
     secret_name: str = Field(title="Segreto",schema_extra=dict(json_schema_extra={"width":"300px"}))
     age: Optional[int] = Field(default=None, title="Età", schema_extra=dict(json_schema_extra={"width":"300px"}))
+    country: str = Field(title="country", schema_extra=SqlModelInfo(label="country",
+                                                                    input_type=InputTypeEnum.TEXT,
+                                                                    width="200px").dict())
 
 pico = (ft.Link(rel='stylesheet',
                      href='https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css',
                      type='text/css'))
-app = FastHTML(debug=True, hdrs=pico)
+#app = FastHTML(debug=True, hdrs=pico)
 
 tailwind = (ft.Script(src="https://cdn.tailwindcss.com"))
 #app = FastHTML(debug=True, hdrs=tailwind)
@@ -29,15 +32,15 @@ bootstrap = (ft.Link(rel='stylesheet',
                      href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
                      type='text/css'),
              ft.Script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"))
-#app = FastHTML(debug=True, hdrs=bootstrap)
+app = FastHTML(debug=True, hdrs=bootstrap)
 
 rt = app.route
 
 def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bool) -> typing.List[Hero]:
     dati = [
-        Hero(id=1, name="xciccio", secret_name="pppp", age=112),
-        Hero(id=2, name="ciccio22", secret_name="pppp2", age=22),
-        Hero(id=3, name="ciccio2", secret_name="pppp2", age=22),
+        Hero(id=1, name="xciccio", secret_name="pppp", age=112, country="IT"),
+        Hero(id=2, name="ciccio22", secret_name="pppp2", age=22, country="NZ"),
+        Hero(id=3, name="ciccio2", secret_name="pppp2", age=22, country="GB"),
     ]
     time.sleep(0)
     if sort is None:
