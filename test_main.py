@@ -1,5 +1,6 @@
 import time
 import typing
+from datetime import date, datetime
 from typing import Optional
 from fasthtml import FastHTML, fastapp
 from fasthtml import ft
@@ -25,6 +26,9 @@ class Hero(SQLModel, table=False):
     country: str = Field(title="country", schema_extra=McSqlModelInfo(label="country",
                                                                     input_type=InputTypeEnum.TEXT,
                                                                     width="200px").dict())
+    birthday: date = Field(title="BirthDay", schema_extra=McSqlModelInfo(label="Data di nascita",
+                                                                          input_type=InputTypeEnum.DATE,
+                                                                          width="200px").dict())
 
 pico = (ft.Link(rel='stylesheet',
                      href='https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css',
@@ -46,16 +50,20 @@ rt = app.route
 
 def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bool) -> typing.List[Hero]:
     dati = [
-        Hero(id=1, name="xciccio", secret_name="pppp", age=112, country="IT"),
-        Hero(id=2, name="ciccio22", secret_name="pppp2", age=22, country="NZ"),
-        Hero(id=3, name="ciccio2", secret_name="pppp2", age=22, country="GB"),
+        Hero(id=1, name="xciccio", secret_name="pppp", age=112, country="IT", birthday=datetime.now().date()),
+        Hero(id=2, name="ciccio22", secret_name="pppp2", age=22, country="NZ", birthday=datetime.now().date()),
+        Hero(id=3, name="pluto 333", secret_name="pppp2", age=22, country="GB", birthday=datetime.now().date()),
     ]
-    time.sleep(0)
-    if sort is None:
-        return dati
-    else:
-        return sorted(dati, key=lambda d: getattr(d, sort), reverse=sort_reverse)
+    for i in range(4,30):
+        dati.append(Hero(id=i, name=f"ciccio{i}", secret_name="pppp", age=11+i, country="IT", birthday=datetime.now().date()))
 
+    time.sleep(0)
+
+    result = dati
+    if sort is not None:
+        result = sorted(dati, key=lambda d: getattr(d, sort), reverse=sort_reverse)
+
+    return result[offset:offset+limit]
 
 
 @rt("/", methods=['GET'])
@@ -66,11 +74,11 @@ async def main():
     # db.close()
     table: McFastHTMLTable = McFastHTMLTable[Hero](app=app, db_model=Hero, identity='hero',
                                                    load_data=mock_get_data,
-                                                   cls="table table-striped table-hover fixed_header responsive")
+                                                   num_rows=6)
 
     fields: typing.List[Field] = []
     for key in Hero.model_fields.keys():
-        if key in ("name", "age", "country"):
+        if key in ("name", "age", "country", "birthday"):
             fields.append(Hero.model_fields[key])
 
     blocco1: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, fields=fields , identity="hero-blocco1",
@@ -78,7 +86,7 @@ async def main():
                                                     caption="Blocco1",
                                                     collapsable=True)
     blocco2: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, fields=fields , identity="hero-blocco2",
-                                                    layout_num_cols=1,
+                                                    layout_num_cols=2,
                                                     caption="Blocco numero 2 caption molto lunga",
                                                     collapsable=True)
 

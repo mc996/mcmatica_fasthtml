@@ -5,7 +5,7 @@ import typing
 from pydantic import  Field
 from typing_extensions import Generic, Optional
 
-from mcmatica_lib import McSqlModelInfo
+from mcmatica_lib import McSqlModelInfo, InputTypeEnum
 
 T = typing.TypeVar("T")
 
@@ -31,22 +31,25 @@ class McFastHTMLFieldsSet:
     def render(self):
         fields_div: typing.List[ft.Div] = []
         for col in self._fields:
-            #col: Field = self._db_model.model_fields[key]
             info: McSqlModelInfo = col.json_schema_extra
             label: ft.Label = ft.Label(info.label, cls="col-4 col-form-label text-end")
-            input: ft.Div = ft.Div(ft.Input("", cls="form-control", id=f"{self._identity}_pp",
-                                            **dict(placeholder=info.label)),
-                                     cls="col-8"
-                                   )
-            fields_div.append(ft.Div(ft.Div(label, input, cls="row"), cls="col"))
+
+            input_type: str = ""
+            if info.input_type == InputTypeEnum.NUMBER:
+                input_type = "number"
+            elif info.input_type == InputTypeEnum.DATE:
+                input_type = "date"
+
+            input_element: ft.Div = ft.Div(ft.Input("",
+                                                    type=input_type,
+                                                    cls="form-control", id=f"{self._identity}_pp",
+                                                    **dict(placeholder=info.label)),
+                                           cls="col-8"
+                                           )
+            fields_div.append(ft.Div(ft.Div(label, input_element, cls="row"), cls="col"))
         card: ft.Div = ft.Div(cls="card")
         card_body: ft.Div = ft.Div(cls="card-body")
         card_title: ft.Div = ft.Div( cls="card-title")
-        collapse_button: ft.I = ft.I("", cls="bi-caret-down me-2", style="font-size: 1rem;",
-                                     **{"data-bs-toggle":"collapse",
-                                        "data-bs-target":f"#{self._identity}",
-                                        "aria-expanded":"true",
-                                        "aria-controls":f"{self._identity}"})
 
         if self._collapsable:
             card_title.set(ft.A(f"{self._caption}",
@@ -61,4 +64,6 @@ class McFastHTMLFieldsSet:
         card_body.set(card_title, ft.Div(*fields_div, id=f"{self._identity}", cls=f"row row-cols-{self._num_cols} collapse show"))
         card.set(card_body)
         return card
+
+    #def fill(self, data: [T]):
 
