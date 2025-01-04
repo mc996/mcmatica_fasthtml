@@ -33,6 +33,17 @@ class McSqlModelInfo:
         #return dict(json_schema_extra={k: str(v) for k, v in asdict(self).items()})
         return dict(json_schema_extra=self)
 
-    def build_selection_list(self, selection_list: typing.List[any]) -> object:
-        self.sel_list = selection_list
-        return self
+    # def build_selection_list(self, selection_list: typing.List[any]) -> object:
+    #     self.sel_list = selection_list
+    #     return self
+
+class McModelObject:
+    """
+    Definisce come un oggetto SqlModel viene renderizzato in una pagina web
+    ListView definisce gli attributi per il rendering in una <table>
+    FormView definisce gli attributi per il rendering in una <form>
+
+    Attributi della classe:
+    - db_model: riferemento alla classe SQLModel
+    """
+    pass
