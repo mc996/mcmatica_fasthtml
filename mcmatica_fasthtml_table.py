@@ -15,27 +15,37 @@ class McFastHTMLTable(Generic[T]):
     _identity: str = None
     _load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]] = None
     _offset: int = 0
-    _limit: int = 15
+    _limit: int = 5
     _fast_html_app: FastHTML = None
     _sort_field: typing.Optional[str] = None
     _sort_reverse: bool = False
-    _cls: typing.Optional[str] = None
+
 
     def  __init__(self, app: FastHTML, db_model: T, identity: str,
                   load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]],
-                  cls: Optional[str]):
+                  num_rows: int):
         self._db_model = db_model
         self._identity = identity
         self._load_data = load_data
         self._fast_html_app = app
-        self._cls = cls
+        self._limit = num_rows
 
-        r = Route(path=f"/{self._identity}/sort",
+        # Sort path
+        route_sort = Route(path=f"/{self._identity}/sort",
                   endpoint=self._fast_html_app._endp(self.sort, None),
                   methods=['GET'],
                   name=f"{self._identity}_sort",
                   include_in_schema=True)
-        self._fast_html_app.add_route(r)
+        self._fast_html_app.add_route(route_sort)
+
+        # pagination path
+        route_page = Route(path=f"/{self._identity}/page",
+                  endpoint=self._fast_html_app._endp(self.page, None),
+                  methods=['GET'],
+                  name=f"{self._identity}_page",
+                  include_in_schema=True)
+        self._fast_html_app.add_route(route_page)
+
 
         print(self._fast_html_app.routes)
 
@@ -78,6 +88,26 @@ class McFastHTMLTable(Generic[T]):
 
         return ft.Tbody(*rows, id=f"{self._identity}-tbody")
 
+    def _build_tfoot(self) -> ft.Tfoot:
+        commands: typing.List[ft.Li] = [
+            ft.Li(ft.A("<",
+                       hx_get=f"/{self._identity}/page?direction=prev",
+                       hx_target=f"#{self._identity}-table",
+                       cls="page-link"),
+                  cls="page-item"),
+            ft.Li(ft.A(">",
+                       hx_get=f"/{self._identity}/page?direction=next",
+                       hx_target=f"#{self._identity}-table",
+                       cls="page-link"),
+                  cls="page-item")
+        ]
+        pagination: ft.Ul = ft.Ul(*commands,cls="pagination pagination-sm")
+        nav: ft.Nav = ft.Nav(
+            pagination
+        )
+        foot: ft.Tfoot = ft.Tfoot(ft.Tr(ft.Td(nav,colspan=len(self._db_model.model_fields))))
+        return foot
+
     async def sort(self, field: str):
         if self._sort_field == field:
              self._sort_reverse = not self._sort_reverse
@@ -86,19 +116,27 @@ class McFastHTMLTable(Generic[T]):
         self._sort_field = field
         return self.render()
 
+    async def page(self, direction: str):
+        if direction == "next":
+            self._offset += self._limit
+        elif direction == "prev":
+            self._offset -= self._limit
+            if self._offset < 0:
+                self._offset = 0
+        return self.render()
 
 
     def render(self):
         col_style, th = self._build_thead()
-
-
         tb = self._build_tbody()
+        tf = self._build_tfoot()
         table: ft.Div = ft.Div(col_style,
                                ft.Div(
-                                   ft.Table(th, tb, cls=self._cls),
-                                   id=f"{self._identity}-table",
-                                   hx_indicator=".loader",
-                                   cls=self._identity
+                                   ft.Table(th, tb, tf,
+                                    cls="table table-striped table-hover fixed_header responsive"),
+                                    id=f"{self._identity}-table",
+                                    hx_indicator=".loader",
+                                    cls=self._identity
                                )
                                )
         return table
