@@ -5,24 +5,25 @@ import typing
 from pydantic import  Field
 from typing_extensions import Generic, Optional
 
-from mcmatica_lib import McSqlModelInfo, InputTypeEnum
+#from mcmatica_lib import McSqlModelInfo, InputTypeEnum
+from mcmatica_object_lib import McModelObject, McField
 
 T = typing.TypeVar("T")
 
 class McFastHTMLFieldsSet:
-    _fields: typing.List[Field]
+    _data_object: McModelObject
     _identity: str = None
     _caption: str = None
     _fast_html_app: FastHTML = None
     _num_cols: int = None
     _collapsable: bool = None
 
-    def __init__(self, app: FastHTML, fields: typing.List[Field], identity: str,
+    def __init__(self, app: FastHTML, data_object: McModelObject, identity: str,
                  caption: str,
                  layout_num_cols: int = 1,
                  collapsable: bool = False):
         self._fast_html_app = app
-        self._fields = fields
+        self._data_object = data_object
         self._identity = identity
         self._caption = caption
         self._num_cols = layout_num_cols
@@ -30,20 +31,19 @@ class McFastHTMLFieldsSet:
 
     def render(self):
         fields_div: typing.List[ft.Div] = []
-        for col in self._fields:
-            info: McSqlModelInfo = col.json_schema_extra
-            label: ft.Label = ft.Label(info.label, cls="col-4 col-form-label text-end")
-
-            input_type: str = ""
-            if info.input_type == InputTypeEnum.NUMBER:
-                input_type = "number"
-            elif info.input_type == InputTypeEnum.DATE:
-                input_type = "date"
-
+        fields: typing.List[McField] = [f for f in self._data_object.fields if f.in_form and f.visibility != "hidden"]
+        fields: typing.List[McField] = sorted(fields, key=lambda d: getattr(d, "form_position"))
+        for col in fields:
+            #info: McSqlModelInfo = col.json_schema_extra
+            label: ft.Label = ft.Label(col.label, cls="col-4 col-form-label text-end")
+            readonly: bool = False
+            if col.visibility == "readonly":
+                readonly = True
             input_element: ft.Div = ft.Div(ft.Input("",
-                                                    type=input_type,
+                                                    type=col.input_type,
+                                                    readonly=readonly,
                                                     cls="form-control", id=f"{self._identity}_pp",
-                                                    **dict(placeholder=info.label)),
+                                                    **dict(placeholder=col.label)),
                                            cls="col-8"
                                            )
             fields_div.append(ft.Div(ft.Div(label, input_element, cls="row"), cls="col"))

@@ -8,27 +8,19 @@ from fasthtml.fastapp import fast_app
 from sqlmodel import Field, SQLModel
 from operator import itemgetter
 
-from mcmatica_lib import McSqlModelInfo, InputTypeEnum
+#from mcmatica_lib import McSqlModelInfo, InputTypeEnum
+from mcmatica_object_lib import McModelObject, McModelObjectBuilder
 from mcmatica_fasthtml_table import McFastHTMLTable
 from mcmatica_fasthtml_form import McFastHTMLFieldsSet
 
 class Hero(SQLModel, table=False):
     id: Optional[int] = Field(default=None, primary_key=True,
-                               title="Id",
-                              schema_extra=McSqlModelInfo(label="Id",
-                                                          width="150px"
-                                                          ).dict())
-    name: str = Field(title="Nome",schema_extra=McSqlModelInfo(label="Nome",
-                                                               width="300px",
-                                                               ).dict())
-    secret_name: str = Field(title="Segreto",schema_extra=McSqlModelInfo(label="Segreto",width="200px").dict())
-    age: Optional[int] = Field(default=None, title="Età", schema_extra=McSqlModelInfo(label="Età",width="150px").dict())
-    country: str = Field(title="country", schema_extra=McSqlModelInfo(label="country",
-                                                                    input_type=InputTypeEnum.TEXT,
-                                                                    width="200px").dict())
-    birthday: date = Field(title="BirthDay", schema_extra=McSqlModelInfo(label="Data di nascita",
-                                                                          input_type=InputTypeEnum.DATE,
-                                                                          width="200px").dict())
+                               title="Id")
+    name: str = Field(title="Nome")
+    secret_name: str = Field(title="Segreto")
+    age: Optional[int] = Field(default=None, title="Età")
+    country: str = Field(title="country")
+    birthday: date = Field(title="BirthDay")
 
 pico = (ft.Link(rel='stylesheet',
                      href='https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css',
@@ -68,11 +60,16 @@ def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bo
 
 @rt("/", methods=['GET'])
 async def main():
+    object: McModelObject = McModelObjectBuilder() \
+        .set_name("hero") \
+        .add_field(field="id", label="Id", width="90px", required=True, in_form=False) \
+        .add_field(field="name", label="Nome", required=False) \
+        .add_field(field="country", label="Nazione", width="30px", required=False, form_position=1) \
+        .add_field(field="age", label="età", width="120px", required=False, visibility="readonly") \
+        .build()
 
-    # db = SessionLocal()
-    # contacts = db.query(ContactDbModel).filter(ContactDbModel.id < 1000).all()
-    # db.close()
-    table: McFastHTMLTable = McFastHTMLTable[Hero](app=app, db_model=Hero, identity='hero',
+
+    table: McFastHTMLTable = McFastHTMLTable(app=app, data_object=object, identity='hero',
                                                    load_data=mock_get_data,
                                                    num_rows=6)
 
@@ -81,21 +78,15 @@ async def main():
         if key in ("name", "age", "country", "birthday"):
             fields.append(Hero.model_fields[key])
 
-    blocco1: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, fields=fields , identity="hero-blocco1",
+    blocco1: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, data_object=object , identity="hero-blocco1",
                                                     layout_num_cols=1,
                                                     caption="Blocco1",
                                                     collapsable=True)
-    blocco2: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, fields=fields , identity="hero-blocco2",
+    blocco2: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, data_object=object , identity="hero-blocco2",
                                                     layout_num_cols=2,
                                                     caption="Blocco numero 2 caption molto lunga",
                                                     collapsable=True)
 
-    #table: McFastHTMLTable = McFastHTMLTable(app=app, db_model=Hero, identity='hero', load_data=mock_get_data)
-    #return table.render()
-    #return ft.Html(ft.Head(ft.Title("TEST")),
-    #                ft.Body(ft.Div(ft.Button("ciao"),
-    #                               table.render()
-    #                               )))
     return ft.Div(ft.Button("ciao", cls="btn btn-primary m-2"),
                   ft.Div(table.render(),blocco1.render(), blocco2.render(),
                          cls="container")

@@ -6,12 +6,12 @@ from starlette.routing import Route
 from typing_extensions import Generic, Optional
 from pydantic import  Field
 
-from mcmatica_lib import McSqlModelInfo
+#from mcmatica_lib import McSqlModelInfo
+from mcmatica_object_lib import McModelObject
 
-T = typing.TypeVar("T")
 
-class McFastHTMLTable(Generic[T]):
-    _db_model: T = None
+class McFastHTMLTable:
+    _data_object: McModelObject = None
     _identity: str = None
     _load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]] = None
     _offset: int = 0
@@ -21,10 +21,10 @@ class McFastHTMLTable(Generic[T]):
     _sort_reverse: bool = False
 
 
-    def  __init__(self, app: FastHTML, db_model: T, identity: str,
+    def  __init__(self, app: FastHTML, data_object: McModelObject, identity: str,
                   load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]],
                   num_rows: int):
-        self._db_model = db_model
+        self._data_object = data_object
         self._identity = identity
         self._load_data = load_data
         self._fast_html_app = app
@@ -54,16 +54,14 @@ class McFastHTMLTable(Generic[T]):
 
         cols: typing.List[ft.Th] = []
         cols_style: str = ""
-        for key in self._db_model.model_fields.keys():
-            col: Field = self._db_model.model_fields[key]
-            info: McSqlModelInfo = col.json_schema_extra
-            cols.append(ft.Th(ft.Div(ft.A(f"{col.title}",
-                                                hx_get=f"/{self._identity}/sort?field={key}",
+        for col in self._data_object.fields:
+            cols.append(ft.Th(ft.Div(ft.A(f"{col.label}",
+                                                hx_get=f"/{self._identity}/sort?field={col.field_id}",
                                                 hx_target=f"#{self._identity}-table",
                                                 cls=cls
                                           ),
                                         ),
-                              cls=f"col_{key}", scope="col", **{'data-theme':"dark"})
+                              cls=f"col_{col.field_id}", scope="col", **{'data-theme':"dark"})
                         )
             # cols_style += f"""
             #     .{self._identity} .col_{key} {{
@@ -71,8 +69,8 @@ class McFastHTMLTable(Generic[T]):
             #     }}
             #     """
             cols_style += f"""
-                            .{self._identity} .col_{key} {{
-                                width: {info.width}
+                            .{self._identity} .col_{col.field_id} {{
+                                width: {col.width}
                             }}
                             """
         th_cols = ft.Tr(*cols)
@@ -82,19 +80,25 @@ class McFastHTMLTable(Generic[T]):
         rows: typing.List[ft.Tr] = []
         for model in self._load_data(self._offset, self._limit, self._sort_field, self._sort_reverse):
             fields: typing.List[ft.Td] = []
-            for key in self._db_model.model_fields.keys():
-                fields.append(ft.Td(ft.Div(getattr(model, key), cls=f"col_{key}"), scope="row"))
+            for col in self._data_object.fields:
+                fields.append(ft.Td(ft.Div(getattr(model, col.field_id), cls=f"col_{col.field_id}"), scope="row"))
             rows.append(ft.Tr(*fields))
 
         return ft.Tbody(*rows, id=f"{self._identity}-tbody")
 
     def _build_tfoot(self) -> ft.Tfoot:
         commands: typing.List[ft.Li] = [
+            ft.Li(ft.A("<<",
+                       hx_get=f"/{self._identity}/page?direction=first",
+                       hx_target=f"#{self._identity}-table",
+                       cls="page-link"),
+                  cls="page-item"),
             ft.Li(ft.A("<",
                        hx_get=f"/{self._identity}/page?direction=prev",
                        hx_target=f"#{self._identity}-table",
                        cls="page-link"),
                   cls="page-item"),
+            ft.Li(int(self._offset / self._limit) + 1, cls="m-auto"),
             ft.Li(ft.A(">",
                        hx_get=f"/{self._identity}/page?direction=next",
                        hx_target=f"#{self._identity}-table",
@@ -105,7 +109,7 @@ class McFastHTMLTable(Generic[T]):
         nav: ft.Nav = ft.Nav(
             pagination
         )
-        foot: ft.Tfoot = ft.Tfoot(ft.Tr(ft.Td(nav,colspan=len(self._db_model.model_fields))))
+        foot: ft.Tfoot = ft.Tfoot(ft.Tr(ft.Td(nav,colspan=len(self._data_object.fields))))
         return foot
 
     async def sort(self, field: str):
@@ -123,6 +127,8 @@ class McFastHTMLTable(Generic[T]):
             self._offset -= self._limit
             if self._offset < 0:
                 self._offset = 0
+        elif direction == "first":
+            self._offset = 0
         return self.render()
 
 
