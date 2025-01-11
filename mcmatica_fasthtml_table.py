@@ -7,11 +7,11 @@ from typing_extensions import Generic, Optional
 from pydantic import  Field
 
 #from mcmatica_lib import McSqlModelInfo
-from mcmatica_object_lib import McModelObject
+from mcmatica_object_lib import McField
 
 
 class McFastHTMLTable:
-    _data_object: McModelObject = None
+    _fields: typing.List[McField] = None
     _identity: str = None
     _load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]] = None
     _offset: int = 0
@@ -21,10 +21,10 @@ class McFastHTMLTable:
     _sort_reverse: bool = False
 
 
-    def  __init__(self, app: FastHTML, data_object: McModelObject, identity: str,
+    def  __init__(self, app: FastHTML, fields: typing.List[McField], identity: str,
                   load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]],
                   num_rows: int):
-        self._data_object = data_object
+        self._fields = fields
         self._identity = identity
         self._load_data = load_data
         self._fast_html_app = app
@@ -54,7 +54,7 @@ class McFastHTMLTable:
 
         cols: typing.List[ft.Th] = []
         cols_style: str = ""
-        for col in self._data_object.fields:
+        for col in self._fields:
             cols.append(ft.Th(ft.Div(ft.A(f"{col.label}",
                                                 hx_get=f"/{self._identity}/sort?field={col.field_id}",
                                                 hx_target=f"#{self._identity}-table",
@@ -80,7 +80,7 @@ class McFastHTMLTable:
         rows: typing.List[ft.Tr] = []
         for model in self._load_data(self._offset, self._limit, self._sort_field, self._sort_reverse):
             fields: typing.List[ft.Td] = []
-            for col in self._data_object.fields:
+            for col in self._fields:
                 fields.append(ft.Td(ft.Div(getattr(model, col.field_id), cls=f"col_{col.field_id}"), scope="row"))
             rows.append(ft.Tr(*fields))
 
@@ -109,7 +109,7 @@ class McFastHTMLTable:
         nav: ft.Nav = ft.Nav(
             pagination
         )
-        foot: ft.Tfoot = ft.Tfoot(ft.Tr(ft.Td(nav,colspan=len(self._data_object.fields))))
+        foot: ft.Tfoot = ft.Tfoot(ft.Tr(ft.Td(nav,colspan=len(self._fields))))
         return foot
 
     async def sort(self, field: str):

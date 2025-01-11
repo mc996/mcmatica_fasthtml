@@ -11,7 +11,7 @@ from operator import itemgetter
 #from mcmatica_lib import McSqlModelInfo, InputTypeEnum
 from mcmatica_object_lib import McModelObject, McModelObjectBuilder
 from mcmatica_fasthtml_table import McFastHTMLTable
-from mcmatica_fasthtml_form import McFastHTMLFieldsSet
+from mcmatica_fasthtml_form import McFastHTMLFieldsSet, McFastHTMLTabs
 
 class Hero(SQLModel, table=False):
     id: Optional[int] = Field(default=None, primary_key=True,
@@ -60,37 +60,75 @@ def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bo
 
 @rt("/", methods=['GET'])
 async def main():
-    object: McModelObject = McModelObjectBuilder() \
-        .set_name("hero") \
-        .add_field(field="id", label="Id", width="90px", required=True, in_form=False) \
-        .add_field(field="name", label="Nome", required=False) \
-        .add_field(field="country", label="Nazione", width="30px", required=False, form_position=1) \
-        .add_field(field="age", label="età", width="120px", required=False, visibility="readonly") \
-        .build()
+    hero: McModelObject = McModelObjectBuilder() \
+    .set_name("Hero") \
+    .set_field_list(identity="hero_list") \
+        .add_field(field="id", label="Id", width="50px") \
+        .add_field(field="name", label="Nome") \
+        .add_field(field="age", label="Età") \
+        .add_field(field="country", label="Nazione", width="150px") \
+    .add_tab_box(identity="tab_1", caption="TAB 1") \
+        .add_fields_set(identity="tab1_box1", caption="Blocco 1") \
+            .add_field(field="name", label="Id", required=True, input_type="text") \
+            .add_field(field="age", label="Age", required=False, input_type="number") \
+        .add_fields_set(identity="tab1_box2", caption="Blocco 2") \
+            .add_field(field="country", label="Nazione", required=True, input_type="text") \
+    .add_tab_box(identity="tab_2", caption="TAB 2") \
+        .add_fields_set(identity="tab2_box1", caption="Blocco 1") \
+            .add_field(field="secretname", label="Password", width="10%") \
+    .build()
+
+    table: McFastHTMLTable = McFastHTMLTable(app=app,
+                                             fields=hero.fields_list.fields,
+                                             identity='hero',
+                                             load_data=mock_get_data,
+                                             num_rows=6)
 
 
-    table: McFastHTMLTable = McFastHTMLTable(app=app, data_object=object, identity='hero',
-                                                   load_data=mock_get_data,
-                                                   num_rows=6)
 
-    fields: typing.List[Field] = []
-    for key in Hero.model_fields.keys():
-        if key in ("name", "age", "country", "birthday"):
-            fields.append(Hero.model_fields[key])
+    tab: McFastHTMLTabs = McFastHTMLTabs(app=app,
+                                         identity="tabs1",
+                                         tabs=hero.tabs)
 
-    blocco1: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, data_object=object , identity="hero-blocco1",
-                                                    layout_num_cols=1,
-                                                    caption="Blocco1",
-                                                    collapsable=True)
-    blocco2: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, data_object=object , identity="hero-blocco2",
-                                                    layout_num_cols=2,
-                                                    caption="Blocco numero 2 caption molto lunga",
-                                                    collapsable=True)
-
-    return ft.Div(ft.Button("ciao", cls="btn btn-primary m-2"),
-                  ft.Div(table.render(),blocco1.render(), blocco2.render(),
+    return ft.Div(
+                  ft.Div(table.render(),
+                         tab.render(),
                          cls="container")
                   )
+
+    #@rt("/", methods=['GET'])
+# async def main():
+#     object: McModelObject = McModelObjectBuilder() \
+#         .set_name("hero") \
+#         .add_field(field="id", label="Id", width="90px", required=True, in_form=False) \
+#         .add_field(field="name", label="Nome", required=False) \
+#         .add_field(field="country", label="Nazione", width="30px", required=False, form_position=1) \
+#         .add_field(field="age", label="età", width="120px", required=False, visibility="readonly") \
+#         .build()
+#
+#
+#     table: McFastHTMLTable = McFastHTMLTable(app=app, data_object=object, identity='hero',
+#                                                    load_data=mock_get_data,
+#                                                    num_rows=6)
+#
+#     fields: typing.List[Field] = []
+#     for key in Hero.model_fields.keys():
+#         if key in ("name", "age", "country", "birthday"):
+#             fields.append(Hero.model_fields[key])
+#
+#     blocco1: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, data_object=object , identity="hero-blocco1",
+#                                                     layout_num_cols=1,
+#                                                     caption="Blocco1",
+#                                                     collapsable=True)
+#     blocco2: McFastHTMLFieldsSet = McFastHTMLFieldsSet(app=app, data_object=object , identity="hero-blocco2",
+#                                                     layout_num_cols=2,
+#                                                     caption="Blocco numero 2 caption molto lunga",
+#                                                     collapsable=True)
+#
+#     return ft.Div(ft.Button("ciao", cls="btn btn-primary m-2"),
+#                   ft.Div(table.render(),blocco1.render(), blocco2.render(),
+#                          cls="container")
+#                   )
 
 
 def start():

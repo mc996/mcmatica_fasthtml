@@ -21,6 +21,7 @@ class MyTestCase(unittest.TestCase):
     def test_001_builder(self):
         object: McModelObject = McModelObjectBuilder() \
                                        .set_name("prova") \
+                                       .add_fields_set(id="Blocco1", caption="blocco 1") \
                                        .add_field(field="name", label="Nome", required=True) \
                                        .add_field(field="country", label="Nazione", required=False) \
                                        .build()
