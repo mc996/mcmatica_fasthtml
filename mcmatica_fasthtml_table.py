@@ -21,7 +21,10 @@ class McFastHTMLTable:
     _sort_reverse: bool = False
 
 
-    def  __init__(self, app: FastHTML, fields: typing.List[McField], identity: str,
+    def  __init__(self,
+                  app: FastHTML,
+                  fields: typing.List[McField],
+                  identity: str,
                   load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]],
                   num_rows: int):
         self._fields = fields

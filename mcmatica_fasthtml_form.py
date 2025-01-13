@@ -1,8 +1,11 @@
+
 from socket import send_fds
 
 from fasthtml import ft
 from fasthtml import FastHTML
 import typing
+
+from sqlmodel import SQLModel, Field
 
 from mcmatica_object_lib import McTabBox, McField
 
@@ -15,26 +18,30 @@ class McFastHTMLTabs:
     _tabs: typing.List[McTabBox] = None
     _fast_html_app: FastHTML = None
     _identity: str = None
+    _load_data: typing.Callable[[int], typing.List[any]] = None
 
     def __init__(self,
                  app: FastHTML,
                  tabs: typing.List[McTabBox],
-                 identity: str
+                 identity: str,
+                 load_data: typing.Callable[[int], typing.List[any]]
                  ):
         self._fast_html_app = app
         self._tabs = tabs
         self._identity = identity
+        self._load_data = load_data
 
 
-    def _build_tab(self, tab: McTabBox, index: int) -> ft.Div:
+    def _build_tab(self, tab: McTabBox, index: int, record_num: int) -> ft.Div:
         fields_set_list: typing.List[ft.Div] = []
         for fields_set in tab.field_sets:
             fields_set_list.append(McFastHTMLFieldsSet(app=self._fast_html_app,
                                 fields=fields_set.fields,
                                 caption=fields_set.caption,
+                                load_data=self._load_data,
                                 identity=fields_set.id,
                                 collapsable=True,
-                                layout_num_cols=2).render())
+                                layout_num_cols=2).render(record_num=record_num))
         cls: str = "tab-pane fade"
         if index == 1:
             cls += " show active"
@@ -47,7 +54,7 @@ class McFastHTMLTabs:
                )
 
 
-    def render(self) -> ft.Div:
+    def render(self, record_num: int = 0) -> ft.Div:
         tab_list: typing.List[ft.Li] = []
         tab_content: typing.List[ft.Div] = []
         index: int = 0
@@ -67,11 +74,14 @@ class McFastHTMLTabs:
                                "aria-controls":f"{tab.id}",
                                "aria-selected":f"{selected}"})
             tab_list.append(ft.Li(button, cls="nav-item"))
-            tab_content.append(self._build_tab(tab=tab, index=index))
+            tab_content.append(self._build_tab(tab=tab, index=index, record_num=record_num))
 
         ul = ft.Ul(*tab_list, clS="nav nav-tabs", role="tablist")
         content = ft.Div(*tab_content, cls="tab-content")
         return ft.Div(ul, content)
+
+
+
 
 class McFastHTMLFieldsSet:
     _fields: typing.List[McField] = None
@@ -80,33 +90,45 @@ class McFastHTMLFieldsSet:
     _fast_html_app: FastHTML = None
     _num_cols: int = None
     _collapsable: bool = None
+    _load_data: typing.Callable[[int], typing.List[any]] = None
 
-    def __init__(self, app: FastHTML, fields: typing.List[McField], identity: str,
+    def __init__(self, app: FastHTML,
+                 fields: typing.List[McField], identity: str,
                  caption: str,
+                 load_data: typing.Callable[[int], typing.List[any]],
                  layout_num_cols: int = 1,
                  collapsable: bool = False):
         self._fast_html_app = app
         self._fields: typing.List[McField] = fields
         self._identity = identity
         self._caption = caption
+        self._load_data = load_data
         self._num_cols = layout_num_cols
         self._collapsable = collapsable
 
-    def render(self) -> ft.Div:
+    def render(self, record_num: int = 0) -> ft.Div:
         fields_div: typing.List[ft.Div] = []
         fields: typing.List[McField] = [f for f in self._fields if f.visibility != "hidden"]
 
+        data = None
+        if record_num > 0:
+            data = self._load_data(record_num)
+
         for col in fields:
-            #info: McSqlModelInfo = col.json_schema_extra
+            value = ""
+            if data is not None:
+                value = getattr(data, col.field_id)
             label: ft.Label = ft.Label(col.label, cls="col-4 col-form-label text-end")
             readonly: bool = False
             if col.visibility == "readonly":
                 readonly = True
+
             input_element: ft.Div = ft.Div(ft.Input("",
                                                     type=col.input_type,
                                                     readonly=readonly,
                                                     cls="form-control",
                                                     id=f"{self._identity}",
+                                                    value=value,
                                                     **dict(placeholder=col.label)),
                                            cls="col-8"
                                            )
@@ -129,5 +151,4 @@ class McFastHTMLFieldsSet:
         card.set(card_body)
         return card
 
-    #def fill(self, data: [T]):
 

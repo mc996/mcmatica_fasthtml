@@ -57,41 +57,53 @@ def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bo
 
     return result[offset:offset+limit]
 
+def mock_get_record(record_num: int) -> Hero:
+    return Hero(id=1, name="xciccio", secret_name="pppp", age=112, country="IT", birthday=datetime.now().date())
+
+
+hero: McModelObject = McModelObjectBuilder() \
+.set_name("Hero") \
+.set_field_list(identity="hero_list") \
+    .add_field(field="id", label="Id", width="50px") \
+    .add_field(field="name", label="Nome") \
+    .add_field(field="age", label="Età") \
+    .add_field(field="country", label="Nazione", width="150px") \
+.add_tab_box(identity="tab_1", caption="TAB 1") \
+    .add_fields_set(identity="tab1_box1", caption="Blocco 1") \
+        .add_field(field="name", label="Id", required=True, input_type="text") \
+        .add_field(field="age", label="Age", required=False, input_type="number") \
+    .add_fields_set(identity="tab1_box2", caption="Blocco 2") \
+        .add_field(field="country", label="Nazione", required=True, input_type="text") \
+.add_tab_box(identity="tab_2", caption="TAB 2") \
+    .add_fields_set(identity="tab2_box1", caption="Blocco 1") \
+        .add_field(field="secretname", label="Password", width="10%") \
+.build()
+
+table: McFastHTMLTable = McFastHTMLTable(app=app,
+                                         fields=hero.fields_list.fields,
+                                         identity='hero',
+                                         load_data=mock_get_data,
+                                         num_rows=6)
+
+
+
+tab: McFastHTMLTabs = McFastHTMLTabs(app=app,
+                                     identity="tabs1",
+                                     tabs=hero.tabs,
+                                     load_data=mock_get_record)
+
+
+@rt("/fill", methods=['GET'])
+async def fill_data_test():
+    tab.render()
+
 
 @rt("/", methods=['GET'])
 async def main():
-    hero: McModelObject = McModelObjectBuilder() \
-    .set_name("Hero") \
-    .set_field_list(identity="hero_list") \
-        .add_field(field="id", label="Id", width="50px") \
-        .add_field(field="name", label="Nome") \
-        .add_field(field="age", label="Età") \
-        .add_field(field="country", label="Nazione", width="150px") \
-    .add_tab_box(identity="tab_1", caption="TAB 1") \
-        .add_fields_set(identity="tab1_box1", caption="Blocco 1") \
-            .add_field(field="name", label="Id", required=True, input_type="text") \
-            .add_field(field="age", label="Age", required=False, input_type="number") \
-        .add_fields_set(identity="tab1_box2", caption="Blocco 2") \
-            .add_field(field="country", label="Nazione", required=True, input_type="text") \
-    .add_tab_box(identity="tab_2", caption="TAB 2") \
-        .add_fields_set(identity="tab2_box1", caption="Blocco 1") \
-            .add_field(field="secretname", label="Password", width="10%") \
-    .build()
-
-    table: McFastHTMLTable = McFastHTMLTable(app=app,
-                                             fields=hero.fields_list.fields,
-                                             identity='hero',
-                                             load_data=mock_get_data,
-                                             num_rows=6)
-
-
-
-    tab: McFastHTMLTabs = McFastHTMLTabs(app=app,
-                                         identity="tabs1",
-                                         tabs=hero.tabs)
 
     return ft.Div(
-                  ft.Div(table.render(),
+                  ft.Div(ft.Button("ciao", cls="btn btn-primary m-2", hx_get=""),
+                         table.render(),
                          tab.render(),
                          cls="container")
                   )
