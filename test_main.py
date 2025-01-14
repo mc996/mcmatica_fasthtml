@@ -1,6 +1,7 @@
 import time
 import typing
 from datetime import date, datetime
+from pickle import GLOBAL
 from typing import Optional
 from fasthtml import FastHTML, fastapp
 from fasthtml import ft
@@ -40,14 +41,17 @@ app = FastHTML(debug=True, pico=False, hdrs=bootstrap)
 
 rt = app.route
 
+dati = [
+    Hero(id=1, name="xciccio", secret_name="pppp", age=112, country="IT", birthday=datetime.now().date()),
+    Hero(id=2, name="ciccio22", secret_name="pppp2", age=22, country="NZ", birthday=datetime.now().date()),
+    Hero(id=3, name="pluto 333", secret_name="pppp2", age=22, country="GB", birthday=datetime.now().date()),
+]
+for i in range(4, 30):
+    dati.append(
+        Hero(id=i, name=f"ciccio{i}", secret_name="pppp", age=11 + i, country="IT", birthday=datetime.now().date()))
+
+
 def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bool) -> typing.List[Hero]:
-    dati = [
-        Hero(id=1, name="xciccio", secret_name="pppp", age=112, country="IT", birthday=datetime.now().date()),
-        Hero(id=2, name="ciccio22", secret_name="pppp2", age=22, country="NZ", birthday=datetime.now().date()),
-        Hero(id=3, name="pluto 333", secret_name="pppp2", age=22, country="GB", birthday=datetime.now().date()),
-    ]
-    for i in range(4,30):
-        dati.append(Hero(id=i, name=f"ciccio{i}", secret_name="pppp", age=11+i, country="IT", birthday=datetime.now().date()))
 
     time.sleep(0)
 
@@ -58,7 +62,7 @@ def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bo
     return result[offset:offset+limit]
 
 def mock_get_record(record_num: int) -> Hero:
-    return Hero(id=1, name="xciccio", secret_name="pppp", age=112, country="IT", birthday=datetime.now().date())
+    return dati[record_num]
 
 
 hero: McModelObject = McModelObjectBuilder() \
@@ -76,7 +80,7 @@ hero: McModelObject = McModelObjectBuilder() \
         .add_field(field="country", label="Nazione", required=True, input_type="text") \
 .add_tab_box(identity="tab_2", caption="TAB 2") \
     .add_fields_set(identity="tab2_box1", caption="Blocco 1") \
-        .add_field(field="secretname", label="Password", width="10%") \
+        .add_field(field="secret_name", label="Password", width="10%") \
 .build()
 
 table: McFastHTMLTable = McFastHTMLTable(app=app,
@@ -92,19 +96,21 @@ tab: McFastHTMLTabs = McFastHTMLTabs(app=app,
                                      tabs=hero.tabs,
                                      load_data=mock_get_record)
 
-
+rec_count = 0
 @rt("/fill", methods=['GET'])
 async def fill_data_test():
-    tab.render()
+    global rec_count
+    rec_count += 1
+    return  tab.render(record_num=rec_count)
 
 
 @rt("/", methods=['GET'])
 async def main():
 
     return ft.Div(
-                  ft.Div(ft.Button("ciao", cls="btn btn-primary m-2", hx_get=""),
+                  ft.Div(ft.Button("ciao", cls="btn btn-primary m-2", hx_get="/fill", hx_target="#form_tabs1"),
                          table.render(),
-                         tab.render(),
+                         tab.render(record_num=0),
                          cls="container")
                   )
 

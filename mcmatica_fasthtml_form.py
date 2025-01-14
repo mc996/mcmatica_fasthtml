@@ -78,7 +78,7 @@ class McFastHTMLTabs:
 
         ul = ft.Ul(*tab_list, clS="nav nav-tabs", role="tablist")
         content = ft.Div(*tab_content, cls="tab-content")
-        return ft.Div(ul, content)
+        return ft.Div(ul, content, id=f"form_{self._identity}")
 
 
 
