@@ -123,11 +123,12 @@ class McFastHTMLFieldsSet:
             if col.visibility == "readonly":
                 readonly = True
 
+            #id = f"{self._identity}-{col.field_id}",
             input_element: ft.Div = ft.Div(ft.Input("",
                                                     type=col.input_type,
                                                     readonly=readonly,
                                                     cls="form-control",
-                                                    id=f"{self._identity}",
+                                                    id=f"{col.field_id}",
                                                     value=value,
                                                     **dict(placeholder=col.label)),
                                            cls="col-8"

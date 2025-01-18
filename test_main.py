@@ -13,6 +13,13 @@ from operator import itemgetter
 from mcmatica_object_lib import McModelObject, McModelObjectBuilder
 from mcmatica_fasthtml_table import McFastHTMLTable
 from mcmatica_fasthtml_form import McFastHTMLFieldsSet, McFastHTMLTabs
+import orjson
+
+import i18n
+
+
+i18n.set("locale", 'it')
+i18n.load_path.append("locale")
 
 class Hero(SQLModel, table=False):
     id: Optional[int] = Field(default=None, primary_key=True,
@@ -36,8 +43,11 @@ bootstrap = (ft.Link(rel='stylesheet',
                      type='text/css'),
              ft.Link(rel="stylesheet",
                      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"),
-             ft.Script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"))
+             ft.Script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"),
+             ft.Script(src="mcmatica_client_lib.js")
+             )
 app = FastHTML(debug=True, pico=False, hdrs=bootstrap)
+app.static_route(ext='.js', prefix="/", static_path='./static/js')
 
 rt = app.route
 
@@ -68,19 +78,22 @@ def mock_get_record(record_num: int) -> Hero:
 hero: McModelObject = McModelObjectBuilder() \
 .set_name("Hero") \
 .set_field_list(identity="hero_list") \
-    .add_field(field="id", label="Id", width="50px") \
-    .add_field(field="name", label="Nome") \
-    .add_field(field="age", label="Età") \
-    .add_field(field="country", label="Nazione", width="150px") \
+    .add_field(field="id", label=i18n.t("general.id"), width="50px") \
+    .add_field(field="name", label=i18n.t("general.name")) \
+    .add_field(field="age", label=i18n.t("general.age")) \
+    .add_field(field="secret_name", label=i18n.t("general.password"), width="250px") \
+    .add_field(field="country", label=i18n.t("general.country"), width="150px") \
 .add_tab_box(identity="tab_1", caption="TAB 1") \
     .add_fields_set(identity="tab1_box1", caption="Blocco 1") \
-        .add_field(field="name", label="Id", required=True, input_type="text") \
+        .add_field(field="id", label="Id", required=True, input_type="text") \
+        .add_field(field="name", label=i18n.t("general.name"), required=True, input_type="text") \
         .add_field(field="age", label="Age", required=False, input_type="number") \
     .add_fields_set(identity="tab1_box2", caption="Blocco 2") \
         .add_field(field="country", label="Nazione", required=True, input_type="text") \
 .add_tab_box(identity="tab_2", caption="TAB 2") \
     .add_fields_set(identity="tab2_box1", caption="Blocco 1") \
         .add_field(field="secret_name", label="Password", width="10%") \
+        .add_field(field="birthday", label="Data di nascita", required=False, input_type="date") \
 .build()
 
 table: McFastHTMLTable = McFastHTMLTable(app=app,
@@ -96,8 +109,23 @@ tab: McFastHTMLTabs = McFastHTMLTabs(app=app,
                                      tabs=hero.tabs,
                                      load_data=mock_get_record)
 
-rec_count = 0
-@rt("/fill", methods=['GET'])
+#rec_count = -1
+@rt(path="/fill", methods=['GET'])
+async def fill_data_test(sess):
+    #print("sess",sess['record_count'])
+    rec_count: int = 0
+    if 'record_count' in sess:
+        rec_count = int(sess['record_count'])
+    print("rec_count",rec_count)
+    sess['record_count'] = rec_count + 1
+    if rec_count < len(dati):
+        print(dati[rec_count].model_dump())
+        return orjson.dumps(dati[rec_count].model_dump()).decode()
+    else:
+        return "{}"
+    #return  tab.render(record_num=rec_count)
+
+@rt(path="/fill2", methods=['GET'])
 async def fill_data_test():
     global rec_count
     rec_count += 1
@@ -108,7 +136,20 @@ async def fill_data_test():
 async def main():
 
     return ft.Div(
-                  ft.Div(ft.Button("ciao", cls="btn btn-primary m-2", hx_get="/fill", hx_target="#form_tabs1"),
+                  ft.Div(ft.Div("", id="hidden_data", hidden=True),
+                      ft.Button("button 1",
+                                   cls="btn btn-primary m-2",
+                                   hx_get="/fill",
+                                   hx_target="#hidden_data",
+                                   **{"hx-on:htmx:after-request":"fill_inputs_form('form_tabs1','hidden_data');"}),
+                      ft.Button("Clear Session",
+                                   cls="btn btn-primary m-2",
+                                   **{"hx-on:click": "alert('ciao');"}),
+                      ft.Button("button 2",
+                                   cls="btn btn-primary m-2",
+                                   hx_get="/fill2",
+                                   hx_target="#form_tabs1",
+                                   **{"hx-on:htmx:after-request":"fill_inputs_form('ciao',{'ciao':'mondo'}); alert(`event.detail.target ${event.detail.target}`);"}),
                          table.render(),
                          tab.render(record_num=0),
                          cls="container")
@@ -150,6 +191,7 @@ async def main():
 
 
 def start():
+
     fastapp.serve()
 
 if __name__ == "__main__":
