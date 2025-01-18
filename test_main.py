@@ -61,7 +61,7 @@ for i in range(4, 30):
         Hero(id=i, name=f"ciccio{i}", secret_name="pppp", age=11 + i, country="IT", birthday=datetime.now().date()))
 
 
-def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bool) -> typing.List[Hero]:
+def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bool) -> (int, typing.List[Hero]):
 
     time.sleep(0)
 
@@ -69,7 +69,7 @@ def mock_get_data(offset: int, limit: int, sort: Optional[str], sort_reverse: bo
     if sort is not None:
         result = sorted(dati, key=lambda d: getattr(d, sort), reverse=sort_reverse)
 
-    return result[offset:offset+limit]
+    return len(dati), result[offset:offset+limit]
 
 def mock_get_record(record_num: int) -> Hero:
     return dati[record_num]
@@ -80,7 +80,7 @@ hero: McModelObject = McModelObjectBuilder() \
 .set_field_list(identity="hero_list") \
     .add_field(field="id", label=i18n.t("general.id"), width="50px") \
     .add_field(field="name", label=i18n.t("general.name")) \
-    .add_field(field="age", label=i18n.t("general.age")) \
+    .add_field(field="age", label=i18n.t("general.age"), width="70px") \
     .add_field(field="secret_name", label=i18n.t("general.password"), width="250px") \
     .add_field(field="country", label=i18n.t("general.country"), width="150px") \
 .add_tab_box(identity="tab_1", caption="TAB 1") \

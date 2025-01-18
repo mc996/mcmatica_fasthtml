@@ -3,10 +3,8 @@ from fasthtml import FastHTML
 import typing
 
 from starlette.routing import Route
-from typing_extensions import Generic, Optional
-from pydantic import  Field
+from typing_extensions import  Optional
 
-#from mcmatica_lib import McSqlModelInfo
 from mcmatica_object_lib import McField
 
 
@@ -19,7 +17,7 @@ class McFastHTMLTable:
     _fast_html_app: FastHTML = None
     _sort_field: typing.Optional[str] = None
     _sort_reverse: bool = False
-
+    _record_count: int = 0
 
     def  __init__(self,
                   app: FastHTML,
@@ -32,6 +30,7 @@ class McFastHTMLTable:
         self._load_data = load_data
         self._fast_html_app = app
         self._limit = num_rows
+        self._record_count: int = 0
 
         # Sort path
         route_sort = Route(path=f"/{self._identity}/sort",
@@ -50,15 +49,19 @@ class McFastHTMLTable:
         self._fast_html_app.add_route(route_page)
 
 
-        print(self._fast_html_app.routes)
-
     def _build_thead(self) -> (ft.Style, ft.Thead):
         cls: str = "link-light link-underline-opacity-0 link-underline-opacity-100-hover link-offset-2 d-block"
 
         cols: typing.List[ft.Th] = []
         cols_style: str = ""
         for col in self._fields:
-            cols.append(ft.Th(ft.Div(ft.A(f"{col.label}",
+            label: str = col.label
+            if col.field_id == self._sort_field:
+                if self._sort_reverse:
+                    label += " ↑"
+                else:
+                    label += " ↓"
+            cols.append(ft.Th(ft.Div(ft.A(label,
                                                 hx_get=f"/{self._identity}/sort?field={col.field_id}",
                                                 hx_target=f"#{self._identity}-table",
                                                 cls=cls
@@ -66,11 +69,6 @@ class McFastHTMLTable:
                                         ),
                               cls=f"col_{col.field_id}", scope="col", **{'data-theme':"dark"})
                         )
-            # cols_style += f"""
-            #     .{self._identity} .col_{key} {{
-            #         width: {col.json_schema_extra['width']}
-            #     }}
-            #     """
             cols_style += f"""
                             .{self._identity} .col_{col.field_id} {{
                                 width: {col.width}
@@ -81,7 +79,8 @@ class McFastHTMLTable:
 
     def _build_tbody(self) -> ft.Tbody:
         rows: typing.List[ft.Tr] = []
-        for model in self._load_data(self._offset, self._limit, self._sort_field, self._sort_reverse):
+        self._record_count, data = self._load_data(self._offset, self._limit, self._sort_field, self._sort_reverse)
+        for model in data:
             fields: typing.List[ft.Td] = []
             for col in self._fields:
                 fields.append(ft.Td(ft.Div(getattr(model, col.field_id), cls=f"col_{col.field_id}"), scope="row"))
@@ -101,9 +100,14 @@ class McFastHTMLTable:
                        hx_target=f"#{self._identity}-table",
                        cls="page-link"),
                   cls="page-item"),
-            ft.Li(int(self._offset / self._limit) + 1, cls="m-auto"),
+            ft.Li(f"{int(self._offset / self._limit) + 1} of {int(self._record_count / self._limit) + 1}", cls="m-auto"),
             ft.Li(ft.A(">",
                        hx_get=f"/{self._identity}/page?direction=next",
+                       hx_target=f"#{self._identity}-table",
+                       cls="page-link"),
+                  cls="page-item"),
+            ft.Li(ft.A(">>",
+                       hx_get=f"/{self._identity}/page?direction=last",
                        hx_target=f"#{self._identity}-table",
                        cls="page-link"),
                   cls="page-item")
@@ -125,13 +129,16 @@ class McFastHTMLTable:
 
     async def page(self, direction: str):
         if direction == "next":
-            self._offset += self._limit
+            if self._offset + self._limit < self._record_count:
+                self._offset += self._limit
         elif direction == "prev":
             self._offset -= self._limit
             if self._offset < 0:
                 self._offset = 0
         elif direction == "first":
             self._offset = 0
+        elif direction == "last":
+            self._offset = int(self._record_count / self._limit) * self._limit
         return self.render()
 
 
