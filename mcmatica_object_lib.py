@@ -1,9 +1,26 @@
 from dataclasses import dataclass
 import dataclasses
 import typing
+from enum import Enum
 from typing import Generic, Literal, overload
 
 #T = typing.TypeVar("T")
+
+class McFieldsSetType(Enum):
+    BLOC = "BLOC"
+    GRID = "GRID"
+
+class McFieldVisibilityType(Enum):
+    READONLY = "READONLY"
+    EDITABLE = "EDITABLE"
+    HIDDEN = "HIDDEN"
+
+class McFieldInputElementType(Enum):
+    TEXT= "text"
+    NUMBER = "number"
+    DATE = "date"
+    DATETIME = "datetime-local"
+    EMAIL = "email"
 
 def empty_list():
     return []
@@ -13,21 +30,21 @@ class McField:
     field_id: str
     label: str
     width: str
-#    in_list: bool
-#    in_form: bool
-#    list_position: int | None
-#    form_position: int | None
     required: bool
-    visibility: Literal["readonly", "editable", "hidden"]
-    input_type: Literal["text", "number", "date", "datetime", "email"] | None
+    visibility: McFieldVisibilityType
+    input_type: McFieldInputElementType | None
 
-
+@dataclass
+class McEmptySpace:
+    visibility: McFieldVisibilityType = McFieldVisibilityType.READONLY
 
 @dataclass
 class McFieldsContainer:
     id: str
     caption: str
-    fields: typing.List[McField] = dataclasses.field(init=False)
+    type: McFieldsSetType
+    collapsable: bool
+    fields: typing.List[McField | McEmptySpace] = dataclasses.field(init=False)
 
     def __post_init__(self):
         self.fields = []
@@ -50,9 +67,8 @@ class McModelObject:
     Attributi della classe:
     - db_model: riferemento alla classe SQLModel
     """
-
+    header_box: McFieldsContainer = None
     tabs: typing.List[McTabBox] = None
-    #fields_sets: typing.List[McFieldsSet] = None
     fields_list: McFieldsContainer = None
     name: str = None
 
@@ -77,15 +93,30 @@ class McModelObjectBuilder:
         self._mc_model_object.tabs.append(self._current_tab_box)
         return self
 
-    def add_fields_set(self, identity: str, caption: str):
+    def add_fields_set(self,
+                       identity: str,
+                       caption: str,
+                       collapsable: bool = True,
+                       type: McFieldsSetType = McFieldsSetType.BLOC):
         assert self._current_tab_box is not None
-        self._current_fields_container = McFieldsContainer(id=identity, caption=caption)
+        self._current_fields_container = McFieldsContainer(id=identity,
+                                                           caption=caption,
+                                                           type=type,
+                                                           collapsable=collapsable)
         self._current_tab_box.field_sets.append(self._current_fields_container)
         return self
 
     def set_field_list(self, identity: str):
-        self._current_fields_container = McFieldsContainer(id=identity, caption="")
+        self._current_fields_container = McFieldsContainer(id=identity, caption="", type=McFieldsSetType.GRID, collapsable=False)
         self._mc_model_object.fields_list = self._current_fields_container
+        return self
+
+    def set_header_box(self, identity: str):
+        self._current_fields_container = McFieldsContainer(id=identity,
+                                                           caption="",
+                                                           type=McFieldsSetType.BLOC,
+                                                           collapsable=False)
+        self._mc_model_object.header_box = self._current_fields_container
         return self
 
     @overload
@@ -94,8 +125,8 @@ class McModelObjectBuilder:
                   label: str,
                   width: str,
                   required: bool = False,
-                  visibility: Literal["readonly", "editable", "hidden"] = "editable",
-                  input_type: Literal["text", "number", "date", "datetime", "email"] = None
+                  visibility: McFieldVisibilityType = McFieldVisibilityType.EDITABLE,
+                  input_type: McFieldInputElementType = None
                   ) : ...
 
     @overload
@@ -103,8 +134,8 @@ class McModelObjectBuilder:
                   label: str = ...,
                   width: str = ...,
                   required: bool = ...,
-                  visibility: Literal["readonly", "editable", "hidden"] = ...,
-                  input_type: Literal["text", "number", "date", "datetime", "email"] = ...
+                  visibility: McFieldVisibilityType = ...,
+                  input_type: McFieldInputElementType = ...
                   ) : ...
 
     def add_field(self,
@@ -112,8 +143,8 @@ class McModelObjectBuilder:
                   label: str = None,
                   width: str = "100%",
                   required: bool = False,
-                  visibility: Literal["readonly", "editable", "hidden"] = "editable",
-                  input_type: Literal["text", "number", "date", "datetime", "email"] = None
+                  visibility: McFieldVisibilityType = McFieldVisibilityType.EDITABLE,
+                  input_type: McFieldInputElementType = None
                   ) :
 
         assert self._mc_model_object is not None
@@ -131,6 +162,11 @@ class McModelObjectBuilder:
 
         return self
 
+    def add_empty_space(self):
+        assert self._mc_model_object is not None
+        assert self._current_fields_container is not None
+        self._current_fields_container.fields.append(McEmptySpace())
+        return self
 
     def build(self) -> McModelObject:
         assert self._mc_model_object is not None

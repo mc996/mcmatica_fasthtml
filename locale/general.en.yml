@@ -3,3 +3,4 @@ en:
     name: Name
     age: Age
     country: Country
+    password: Password

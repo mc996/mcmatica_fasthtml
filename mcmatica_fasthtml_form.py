@@ -7,12 +7,80 @@ import typing
 
 from sqlmodel import SQLModel, Field
 
-from mcmatica_object_lib import McTabBox, McField
+from mcmatica_fasthtml_table import McFastHTMLTable
+from mcmatica_object_lib import McTabBox, McField, McFieldsSetType, McModelObject, McEmptySpace
+
 
 #T = typing.TypeVar("T")
 
-class McFastHTMLForm:
-    pass
+class McFastHTMLWindow:
+    _object_model: McModelObject
+    _fast_html_app: FastHTML = None
+    _load_data: typing.Callable[[int, int, typing.Optional[str], bool], typing.List[any]] = None
+    _list: McFastHTMLTable = None
+
+
+    def __init__(self,
+                 app: FastHTML,
+                 object_model: McModelObject,
+                 load_data: typing.Callable[[int, int, typing.Optional[str], bool], typing.List[any]] = None
+        ):
+        self._fast_html_app = app
+        self._object_model = object_model
+        self._load_data = load_data
+
+    def _get_record(self, record_num: int) -> any:
+        if self._list is not None:
+            return self._list.dataset[record_num]
+        else:
+            return None
+
+    def _build_main_layout(self):
+        panel: ft.Div = ft.Div(cls="row")
+        left_panel: ft.Div = ft.Div(self._build_list(),
+                                    cls="col-3 overflow-x-auto")
+        right_panel: ft.Div = ft.Div(self._build_main_box(),
+                                     ft.Div(self._build_tabs(), cls="mt-5"),
+                                     cls="col-9")
+        panel.set(left_panel, right_panel)
+        return panel
+
+    def _build_list(self):
+        self_list: McFastHTMLTable = McFastHTMLTable(app=self._fast_html_app,
+                                                 fields=self._object_model.fields_list.fields,
+                                                 identity='hero',
+                                                 load_data= self._load_data,
+                                                 num_rows=6)
+        return self_list.render()
+
+    def _build_main_box(self):
+        return McFastHTMLFieldsSet(app=self._fast_html_app,
+                            fields=self._object_model.header_box.fields,
+                            caption=self._object_model.header_box.caption,
+                            load_data=self._get_record,
+                            identity=self._object_model.header_box.id,
+                            collapsable=False,
+                            layout_num_cols=2).render(record_num=1)
+
+
+    def _build_tabs(self):
+        return McFastHTMLTabs(app=self._fast_html_app,
+                                             identity="tabs",
+                                             tabs=self._object_model.tabs,
+                                             load_data=self._get_record).render()
+
+    def render(self):
+        container: ft.Div = ft.Div(cls="container-fluid")
+        caption: ft.Div = ft.Div(ft.Label(self._object_model.name),
+                                 cls="row"
+                                 )
+        container.set(ft.Div("", id="hidden_data", hidden=True),
+                      caption,
+                      self._build_main_layout())
+
+        return container
+
+
 
 class McFastHTMLTabs:
     _tabs: typing.List[McTabBox] = None
@@ -35,13 +103,42 @@ class McFastHTMLTabs:
     def _build_tab(self, tab: McTabBox, index: int, record_num: int) -> ft.Div:
         fields_set_list: typing.List[ft.Div] = []
         for fields_set in tab.field_sets:
-            fields_set_list.append(McFastHTMLFieldsSet(app=self._fast_html_app,
-                                fields=fields_set.fields,
-                                caption=fields_set.caption,
-                                load_data=self._load_data,
-                                identity=fields_set.id,
-                                collapsable=True,
-                                layout_num_cols=2).render(record_num=record_num))
+            if fields_set.type == McFieldsSetType.BLOC:
+                fields_set_list.append(McFastHTMLFieldsSet(app=self._fast_html_app,
+                                    fields=fields_set.fields,
+                                    caption=fields_set.caption,
+                                    load_data=self._load_data,
+                                    identity=fields_set.id,
+                                    collapsable=fields_set.collapsable,
+                                    layout_num_cols=2).render(record_num=record_num))
+            elif fields_set.type == McFieldsSetType.GRID:
+                card: ft.Div = ft.Div(cls="card")
+                card_body: ft.Div = ft.Div(cls="card-body")
+                card_title: ft.Div = ft.Div(cls="card-title")
+                if fields_set.collapsable:
+                    card_title.set(ft.A(f"{fields_set.caption}",
+                                        **{"data-bs-toggle": "collapse",
+                                           "data-bs-target": f"#{fields_set.id}",
+                                           "aria-expanded": "true",
+                                           "aria-controls": f"{fields_set.id}"}
+                                        ))
+
+                else:
+                    card_title.set(f"{fields_set.caption}")
+                card_body.set(card_title, ft.Div(McFastHTMLTable(app=self._fast_html_app,
+                                                      identity=fields_set.id,
+                                                      load_data=None,
+                                                       data=[],
+                                                      fields=fields_set.fields,
+                                                      num_rows=10
+                                                     ).render(),
+                                                 id=f"{fields_set.id}",
+                                                 ))
+                card.set(card_body)
+
+                fields_set_list.append(card)
+
+
         cls: str = "tab-pane fade"
         if index == 1:
             cls += " show active"
@@ -84,7 +181,7 @@ class McFastHTMLTabs:
 
 
 class McFastHTMLFieldsSet:
-    _fields: typing.List[McField] = None
+    _fields: typing.List[McField | McEmptySpace] = None
     _identity: str = None
     _caption: str = None
     _fast_html_app: FastHTML = None
@@ -108,32 +205,35 @@ class McFastHTMLFieldsSet:
 
     def render(self, record_num: int = 0) -> ft.Div:
         fields_div: typing.List[ft.Div] = []
-        fields: typing.List[McField] = [f for f in self._fields if f.visibility != "hidden"]
+        fields: typing.List[McField | McEmptySpace] = [f for f in self._fields if f.visibility != "hidden"]
 
         data = None
         if record_num > 0:
             data = self._load_data(record_num)
 
         for col in fields:
-            value = ""
-            if data is not None:
-                value = getattr(data, col.field_id)
-            label: ft.Label = ft.Label(col.label, cls="col-4 col-form-label text-end")
-            readonly: bool = False
-            if col.visibility == "readonly":
-                readonly = True
+            if isinstance(col, McField):
+                value = ""
+                if data is not None:
+                    value = getattr(data, col.field_id)
+                label: ft.Label = ft.Label(col.label, cls="col-4 col-form-label text-end")
+                readonly: bool = False
+                if col.visibility == "readonly":
+                    readonly = True
 
-            #id = f"{self._identity}-{col.field_id}",
-            input_element: ft.Div = ft.Div(ft.Input("",
-                                                    type=col.input_type,
-                                                    readonly=readonly,
-                                                    cls="form-control",
-                                                    id=f"{col.field_id}",
-                                                    value=value,
-                                                    **dict(placeholder=col.label)),
-                                           cls="col-8"
-                                           )
-            fields_div.append(ft.Div(ft.Div(label, input_element, cls="row"), cls="col"))
+                #id = f"{self._identity}-{col.field_id}",
+                input_element: ft.Div = ft.Div(ft.Input("",
+                                                        type="text" if col.input_type is None else col.input_type.value,
+                                                        readonly=readonly,
+                                                        cls="form-control",
+                                                        id=f"{col.field_id}",
+                                                        value=value,
+                                                        **dict(placeholder=col.label)),
+                                               cls="col-8"
+                                               )
+                fields_div.append(ft.Div(ft.Div(label, input_element, cls="row"), cls="col"))
+            elif isinstance(col, McEmptySpace):
+                fields_div.append(ft.Div(ft.Div("", cls="row"), cls="col"))
         card: ft.Div = ft.Div(cls="card")
         card_body: ft.Div = ft.Div(cls="card-body")
         card_title: ft.Div = ft.Div( cls="card-title")

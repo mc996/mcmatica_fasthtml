@@ -6,28 +6,34 @@ from starlette.routing import Route
 from typing_extensions import  Optional
 
 from mcmatica_object_lib import McField
+import orjson
 
+#T = typing.TypeVar("T")
 
 class McFastHTMLTable:
     _fields: typing.List[McField] = None
     _identity: str = None
     _load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]] = None
+    _data: typing.List[any] = None
     _offset: int = 0
     _limit: int = 5
     _fast_html_app: FastHTML = None
     _sort_field: typing.Optional[str] = None
     _sort_reverse: bool = False
     _record_count: int = 0
+    _loaded_dataset: typing.List[any] = None
 
     def  __init__(self,
                   app: FastHTML,
                   fields: typing.List[McField],
                   identity: str,
-                  load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]],
-                  num_rows: int):
+                  load_data: typing.Callable[[int, int, Optional[str], bool], typing.List[any]] | None,
+                  data: typing.List[any] = None,
+                  num_rows: int = 0):
         self._fields = fields
         self._identity = identity
         self._load_data = load_data
+        self._data = data
         self._fast_html_app = app
         self._limit = num_rows
         self._record_count: int = 0
@@ -47,6 +53,13 @@ class McFastHTMLTable:
                   name=f"{self._identity}_page",
                   include_in_schema=True)
         self._fast_html_app.add_route(route_page)
+
+        route_record = Route(path=f"/{self._identity}/record",
+                  endpoint=self._fast_html_app._endp(self.load_record, None),
+                  methods=['GET'],
+                  name=f"{self._identity}_record",
+                  include_in_schema=True)
+        self._fast_html_app.add_route(route_record)
 
 
     def _build_thead(self) -> (ft.Style, ft.Thead):
@@ -79,12 +92,23 @@ class McFastHTMLTable:
 
     def _build_tbody(self) -> ft.Tbody:
         rows: typing.List[ft.Tr] = []
-        self._record_count, data = self._load_data(self._offset, self._limit, self._sort_field, self._sort_reverse)
-        for model in data:
+        if self._load_data is not None:
+            self._record_count, self._loaded_dataset = self._load_data(self._offset, self._limit, self._sort_field, self._sort_reverse)
+        else:
+            self._loaded_dataset = self._data
+            self._record_count = len(self._loaded_dataset)
+        count: int = 0
+        for model in self._loaded_dataset:
             fields: typing.List[ft.Td] = []
             for col in self._fields:
                 fields.append(ft.Td(ft.Div(getattr(model, col.field_id), cls=f"col_{col.field_id}"), scope="row"))
-            rows.append(ft.Tr(*fields))
+            rows.append(ft.Tr(*fields,
+                              role="button",
+                              hx_get=f"/{self._identity}/record?record_num={count}",
+                              hx_target="#hidden_data",
+                              **{"hx-on:htmx:after-request": "fill_inputs_form('form_tabs1','hidden_data');"}
+                              ))
+            count += 1
 
         return ft.Tbody(*rows, id=f"{self._identity}-tbody")
 
@@ -100,7 +124,7 @@ class McFastHTMLTable:
                        hx_target=f"#{self._identity}-table",
                        cls="page-link"),
                   cls="page-item"),
-            ft.Li(f"{int(self._offset / self._limit) + 1} of {int(self._record_count / self._limit) + 1}", cls="m-auto"),
+            ft.Li(f"{int(self._offset / self._limit) + 1} of {int(self._record_count / self._limit) + 1}", cls="ps-5 pe-5"),
             ft.Li(ft.A(">",
                        hx_get=f"/{self._identity}/page?direction=next",
                        hx_target=f"#{self._identity}-table",
@@ -141,7 +165,16 @@ class McFastHTMLTable:
             self._offset = int(self._record_count / self._limit) * self._limit
         return self.render()
 
+    async def load_record(self, record_num: int):
+        print(self._loaded_dataset[record_num].model_dump())
+        return orjson.dumps(self._loaded_dataset[record_num].model_dump()).decode()
 
+
+    @property().getter
+    def dataset(self):
+        return self._loaded_dataset
+        
+        
     def render(self):
         col_style, th = self._build_thead()
         tb = self._build_tbody()

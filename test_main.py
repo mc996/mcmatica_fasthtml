@@ -1,18 +1,15 @@
 import time
 import typing
 from datetime import date, datetime
-from pickle import GLOBAL
 from typing import Optional
 from fasthtml import FastHTML, fastapp
 from fasthtml import ft
-from fasthtml.fastapp import fast_app
 from sqlmodel import Field, SQLModel
-from operator import itemgetter
+from starlette.applications import Starlette
 
-#from mcmatica_lib import McSqlModelInfo, InputTypeEnum
-from mcmatica_object_lib import McModelObject, McModelObjectBuilder
+from mcmatica_object_lib import McModelObject, McModelObjectBuilder, McFieldInputElementType, McFieldsSetType
 from mcmatica_fasthtml_table import McFastHTMLTable
-from mcmatica_fasthtml_form import McFastHTMLFieldsSet, McFastHTMLTabs
+from mcmatica_fasthtml_form import  McFastHTMLTabs, McFastHTMLWindow
 import orjson
 
 import i18n
@@ -29,6 +26,8 @@ class Hero(SQLModel, table=False):
     age: Optional[int] = Field(default=None, title="Età")
     country: str = Field(title="country")
     birthday: date = Field(title="BirthDay")
+    email: str = Field(default="")
+    timestamp: datetime = Field(default=datetime.now())
 
 pico = (ft.Link(rel='stylesheet',
                      href='https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css',
@@ -55,8 +54,9 @@ dati = [
     Hero(id=1, name="xciccio", secret_name="pppp", age=112, country="IT", birthday=datetime.now().date()),
     Hero(id=2, name="ciccio22", secret_name="pppp2", age=22, country="NZ", birthday=datetime.now().date()),
     Hero(id=3, name="pluto 333", secret_name="pppp2", age=22, country="GB", birthday=datetime.now().date()),
+    Hero(id=4, name="pluto 444", email="ciao@pippo.it", secret_name="pppp2", age=22, country="GB", birthday=datetime.now().date()),
 ]
-for i in range(4, 30):
+for i in range(5, 30):
     dati.append(
         Hero(id=i, name=f"ciccio{i}", secret_name="pppp", age=11 + i, country="IT", birthday=datetime.now().date()))
 
@@ -77,23 +77,35 @@ def mock_get_record(record_num: int) -> Hero:
 
 hero: McModelObject = McModelObjectBuilder() \
 .set_name("Hero") \
+.set_header_box(identity="hero") \
+    .add_field(field="id", label=i18n.t("general.id")) \
+    .add_empty_space() \
+    .add_empty_space() \
+    .add_field(field="name", label=i18n.t("general.name")) \
 .set_field_list(identity="hero_list") \
     .add_field(field="id", label=i18n.t("general.id"), width="50px") \
     .add_field(field="name", label=i18n.t("general.name")) \
     .add_field(field="age", label=i18n.t("general.age"), width="70px") \
+    .add_field(field="email", label=i18n.t("general.email"), width="170px") \
     .add_field(field="secret_name", label=i18n.t("general.password"), width="250px") \
     .add_field(field="country", label=i18n.t("general.country"), width="150px") \
+    .add_field(field="timestamp", label=i18n.t("general.timestamp")) \
 .add_tab_box(identity="tab_1", caption="TAB 1") \
     .add_fields_set(identity="tab1_box1", caption="Blocco 1") \
-        .add_field(field="id", label="Id", required=True, input_type="text") \
-        .add_field(field="name", label=i18n.t("general.name"), required=True, input_type="text") \
-        .add_field(field="age", label="Age", required=False, input_type="number") \
+        .add_field(field="id", label="Id", required=True, input_type=McFieldInputElementType.TEXT) \
+        .add_empty_space() \
+        .add_field(field="name", label=i18n.t("general.name"), required=True, input_type=McFieldInputElementType.TEXT) \
+        .add_field(field="age", label="Age", required=False, input_type=McFieldInputElementType.NUMBER) \
     .add_fields_set(identity="tab1_box2", caption="Blocco 2") \
-        .add_field(field="country", label="Nazione", required=True, input_type="text") \
+        .add_field(field="country", label="Nazione", required=True, input_type=McFieldInputElementType.TEXT) \
+    .add_fields_set(identity="box3", caption="Dettaglio", type=McFieldsSetType.GRID ) \
+        .add_field(field="country", label=i18n.t("general.country"), width="150px") \
 .add_tab_box(identity="tab_2", caption="TAB 2") \
     .add_fields_set(identity="tab2_box1", caption="Blocco 1") \
         .add_field(field="secret_name", label="Password", width="10%") \
-        .add_field(field="birthday", label="Data di nascita", required=False, input_type="date") \
+        .add_field(field="birthday", label="Data di nascita", required=False, input_type=McFieldInputElementType.DATE) \
+        .add_field(field="email", label=i18n.t("general.email"), required=True, input_type=McFieldInputElementType.EMAIL) \
+        .add_field(field="timestamp", label="pota", required=True, input_type=McFieldInputElementType.DATETIME) \
 .build()
 
 table: McFastHTMLTable = McFastHTMLTable(app=app,
@@ -109,10 +121,17 @@ tab: McFastHTMLTabs = McFastHTMLTabs(app=app,
                                      tabs=hero.tabs,
                                      load_data=mock_get_record)
 
+
+@rt(path="/clear_session", methods=['GET'])
+async def clear_session(sess):
+    print("sess",sess)
+    sess.clear()
+    return None
+
 #rec_count = -1
 @rt(path="/fill", methods=['GET'])
 async def fill_data_test(sess):
-    #print("sess",sess['record_count'])
+    print("sess",sess)
     rec_count: int = 0
     if 'record_count' in sess:
         rec_count = int(sess['record_count'])
@@ -142,9 +161,14 @@ async def main():
                                    hx_get="/fill",
                                    hx_target="#hidden_data",
                                    **{"hx-on:htmx:after-request":"fill_inputs_form('form_tabs1','hidden_data');"}),
-                      ft.Button("Clear Session",
-                                   cls="btn btn-primary m-2",
-                                   **{"hx-on:click": "alert('ciao');"}),
+                     ft.Button("Clear Session server side",
+                               cls="btn btn-primary m-2",
+                               hx_target="#hidden_data",
+                               hx_get="/clear_session"),
+
+                     ft.Button("Clear Session",
+                               cls="btn btn-primary m-2",
+                               **{"hx-on:click": "alert('ciao');"}),
                       ft.Button("button 2",
                                    cls="btn btn-primary m-2",
                                    hx_get="/fill2",
@@ -188,6 +212,14 @@ async def main():
 #                   ft.Div(table.render(),blocco1.render(), blocco2.render(),
 #                          cls="container")
 #                   )
+
+@rt(path="/form", methods=['GET'])
+async def build_window():
+    return McFastHTMLWindow(
+        app=app,
+        object_model=hero,
+        load_data=mock_get_data,
+    ).render()
 
 
 def start():
