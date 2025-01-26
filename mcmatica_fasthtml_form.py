@@ -1,11 +1,6 @@
-
-from socket import send_fds
-
 from fasthtml import ft
 from fasthtml import FastHTML
 import typing
-
-from sqlmodel import SQLModel, Field
 
 from mcmatica_fasthtml_table import McFastHTMLTable
 from mcmatica_object_lib import McTabBox, McField, McFieldsSetType, McModelObject, McEmptySpace
@@ -36,12 +31,16 @@ class McFastHTMLWindow:
             return None
 
     def _build_main_layout(self):
-        panel: ft.Div = ft.Div(cls="row")
+        panel: ft.Div = ft.Div(cls="row ", style={"height":"90vh"})
         left_panel: ft.Div = ft.Div(self._build_list(),
-                                    cls="col-3 overflow-x-auto")
-        right_panel: ft.Div = ft.Div(self._build_main_box(),
-                                     ft.Div(self._build_tabs(), cls="mt-5"),
-                                     cls="col-9")
+                                    cls="col-3 p-3 bg-body-tertiary overflow-x-auto ")
+
+        separator: ft.Div = ft.Div("", cls="flex-shrink-0 height-100vh")
+
+        right_panel: ft.Div = ft.Div(ft.Div(self._build_main_box(),
+                                     ft.Div(self._build_tabs(), cls="mt-5 vh-100"),
+                                     cls="bg-body-tertiary"),
+                                     cls="col-9 overflow-y-auto", style={"height":"90vh"})
         panel.set(left_panel, right_panel)
         return panel
 
@@ -70,13 +69,16 @@ class McFastHTMLWindow:
                                              load_data=self._get_record).render()
 
     def render(self):
-        container: ft.Div = ft.Div(cls="container-fluid")
-        caption: ft.Div = ft.Div(ft.Label(self._object_model.name),
-                                 cls="row"
+        container: ft.Div = ft.Div(cls="container-fluid vh-100 ")
+        header_panel: ft.Div = ft.Div(ft.Label(self._object_model.name),
+                                 cls="row ", style={"height":"5vh"}
                                  )
+        foot_panel: ft.Div = ft.Div("foot", cls="row", style={"height":"5vh"})
+
         container.set(ft.Div("", id="hidden_data", hidden=True),
-                      caption,
-                      self._build_main_layout())
+                      header_panel,
+                      self._build_main_layout(),
+                      foot_panel)
 
         return container
 
