@@ -1,3 +1,4 @@
+from babel.plural import cldr_modulo
 from fasthtml import ft
 from fasthtml import FastHTML
 import typing
@@ -37,8 +38,11 @@ class McFastHTMLWindow:
 
         separator: ft.Div = ft.Div("", cls="flex-shrink-0 height-100vh")
 
-        right_panel: ft.Div = ft.Div(ft.Div(self._build_main_box(),
-                                     ft.Div(self._build_tabs(), cls="mt-5 vh-100"),
+        tab_div: ft.Div = ft.Div(self._build_tabs(), cls="mt-5 vh-100")
+
+        right_panel: ft.Div = ft.Div(ft.Div(
+                                     self._build_main_box(),
+                                     tab_div,
                                      cls="bg-body-tertiary"),
                                      cls="col-9 overflow-y-auto", style={"height":"90vh"})
         panel.set(left_panel, right_panel)
@@ -70,18 +74,40 @@ class McFastHTMLWindow:
 
     def render(self):
         container: ft.Div = ft.Div(cls="container-fluid vh-100 ")
-        header_panel: ft.Div = ft.Div(ft.Label(self._object_model.name),
+        #ft.Label(self._object_model.name)
+        nav_div: ft.Nav = McFastHTMLFormNavBar(app=self._fast_html_app).render()
+        header_panel: ft.Div = ft.Div(nav_div,
                                  cls="row ", style={"height":"5vh"}
                                  )
         foot_panel: ft.Div = ft.Div("foot", cls="row", style={"height":"5vh"})
 
-        container.set(ft.Div("", id="hidden_data", hidden=True),
+        hidden_data_div: ft.Div = ft.Div("", id="hidden_data", hidden=True)
+
+        container.set(hidden_data_div,
                       header_panel,
                       self._build_main_layout(),
                       foot_panel)
 
         return container
 
+
+class McFastHTMLFormNavBar:
+    _fast_html_app: FastHTML = None
+
+    def __init__(self,
+                 app: FastHTML):
+        self._fast_html_app = app
+
+    def render(self) -> ft.Nav:
+        button_delete: ft.Li = ft.Li(ft.A("delete", cls="nav-link"), cls="nav-item")
+        button_save: ft.Li = ft.Li(ft.A("save", cls="nav-link"), cls="nav-item")
+
+        ul: ft.Ul = ft.Ul(button_delete,
+                          button_save,
+                          cls="navbar-nav")
+        div_navbar: ft.Div = ft.Div(ul,cls="collapse navbar-collapse")
+        nav: ft.Nav = ft.Nav(div_navbar,cls="navbar navbar-expand-lg bg-body-tertiary")
+        return nav
 
 
 class McFastHTMLTabs:

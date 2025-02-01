@@ -37,6 +37,16 @@ class McField:
 @dataclass
 class McEmptySpace:
     visibility: McFieldVisibilityType = McFieldVisibilityType.READONLY
+    field_id: str = ""
+
+@dataclass
+class McFieldsList:
+    id: str
+    caption: str
+    fields: typing.List[McField] = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.fields = []
 
 @dataclass
 class McFieldsContainer:
@@ -79,10 +89,12 @@ class McModelObjectBuilder:
 
     _mc_model_object: McModelObject = None
     _current_tab_box: McTabBox = None
-    _current_fields_container: McFieldsContainer = None
+    _current_fields_container: McFieldsContainer | McFieldsList = None
+    _field_ids: typing.List[str] = None
 
     def __init__(self):
         self._mc_model_object = McModelObject()
+        self._field_ids = []
 
     def set_name(self, name: str):
         self._mc_model_object.name = name
@@ -107,7 +119,7 @@ class McModelObjectBuilder:
         return self
 
     def set_field_list(self, identity: str):
-        self._current_fields_container = McFieldsContainer(id=identity, caption="", type=McFieldsSetType.GRID, collapsable=False)
+        self._current_fields_container = McFieldsList(id=identity, caption="")
         self._mc_model_object.fields_list = self._current_fields_container
         return self
 
@@ -149,17 +161,24 @@ class McModelObjectBuilder:
 
         assert self._mc_model_object is not None
         assert self._current_fields_container is not None
+
+        fld: McField = None
         if isinstance(field, str):
-            fld: McField = McField(field_id=field,
+            fld = McField(field_id=field,
                                      label=label,
                                      width=width,
                                      required=required,
                                      visibility=visibility,
                                      input_type=input_type)
-            self._current_fields_container.fields.append(fld)
-        else:
-            self._current_fields_container.fields.append(field)
+             #self._current_fields_container.fields.append(fld)
+        elif isinstance(field, McField):
+            fld = field
 
+        if isinstance(self._current_fields_container, McFieldsContainer):
+            assert fld.field_id not in self._field_ids
+            self._field_ids.append(fld.field_id)
+
+        self._current_fields_container.fields.append(fld)
         return self
 
     def add_empty_space(self):

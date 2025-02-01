@@ -78,31 +78,23 @@ def mock_get_record(record_num: int) -> Hero:
 hero: McModelObject = McModelObjectBuilder() \
 .set_name("Hero") \
 .set_header_box(identity="hero") \
-    .add_field(field="id", label=i18n.t("general.id")) \
+    .add_field(field="id", label=i18n.t("general.id"), ) \
+    .add_field(field="age", label=i18n.t("general.age"), width="70px") \
     .add_empty_space() \
     .add_empty_space() \
     .add_field(field="name", label=i18n.t("general.name")) \
 .set_field_list(identity="hero_list") \
-    .add_field(field="id", label=i18n.t("general.id"), width="50px") \
-    .add_field(field="name", label=i18n.t("general.name")) \
+    .add_field(field="id", label=i18n.t("general.id"),width="70px") \
     .add_field(field="age", label=i18n.t("general.age"), width="70px") \
-    .add_field(field="email", label=i18n.t("general.email"), width="170px") \
     .add_field(field="secret_name", label=i18n.t("general.password"), width="250px") \
-    .add_field(field="country", label=i18n.t("general.country"), width="150px") \
     .add_field(field="timestamp", label=i18n.t("general.timestamp")) \
 .add_tab_box(identity="tab_1", caption="TAB 1") \
-    .add_fields_set(identity="tab1_box1", caption="Blocco 1") \
-        .add_field(field="id", label="Id", required=True, input_type=McFieldInputElementType.TEXT) \
-        .add_empty_space() \
-        .add_field(field="name", label=i18n.t("general.name"), required=True, input_type=McFieldInputElementType.TEXT) \
-        .add_field(field="age", label="Age", required=False, input_type=McFieldInputElementType.NUMBER) \
     .add_fields_set(identity="tab1_box2", caption="Blocco 2") \
         .add_field(field="country", label="Nazione", required=True, input_type=McFieldInputElementType.TEXT) \
     .add_fields_set(identity="box3", caption="Dettaglio", type=McFieldsSetType.GRID ) \
-        .add_field(field="country", label=i18n.t("general.country"), width="150px") \
+        .add_field(field="pippo", label=i18n.t("general.country"), width="150px") \
 .add_tab_box(identity="tab_2", caption="TAB 2") \
     .add_fields_set(identity="tab2_box1", caption="Blocco 1") \
-        .add_field(field="secret_name", label="Password", width="10%") \
         .add_field(field="birthday", label="Data di nascita", required=False, input_type=McFieldInputElementType.DATE) \
         .add_field(field="email", label=i18n.t("general.email"), required=True, input_type=McFieldInputElementType.EMAIL) \
         .add_field(field="timestamp", label="pota", required=True, input_type=McFieldInputElementType.DATETIME) \
