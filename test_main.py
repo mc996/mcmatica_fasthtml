@@ -11,6 +11,7 @@ from mcmatica_object_lib import McModelObject, McModelObjectBuilder, McFieldInpu
 from mcmatica_fasthtml_table import McFastHTMLTable
 from mcmatica_fasthtml_form import  McFastHTMLTabs, McFastHTMLWindow
 import orjson
+from models import test
 
 import i18n
 
@@ -80,6 +81,7 @@ hero: McModelObject = McModelObjectBuilder() \
 .set_header_box(identity="hero") \
     .add_field(field="id", label=i18n.t("general.id"), ) \
     .add_field(field="age", label=i18n.t("general.age"), width="70px") \
+        .add_action(event="change", callback=test.on_age_change) \
     .add_empty_space() \
     .add_empty_space() \
     .add_field(field="name", label=i18n.t("general.name")) \
@@ -208,6 +210,7 @@ async def main():
 @rt(path="/form", methods=['GET'])
 async def build_window():
     return McFastHTMLWindow(
+        identity="hero",
         app=app,
         object_model=hero,
         load_data=mock_get_data,

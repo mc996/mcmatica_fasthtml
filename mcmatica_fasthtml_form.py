@@ -2,7 +2,7 @@ from babel.plural import cldr_modulo
 from fasthtml import ft
 from fasthtml import FastHTML
 import typing
-
+from starlette.routing import Route
 from mcmatica_fasthtml_table import McFastHTMLTable
 from mcmatica_object_lib import McTabBox, McField, McFieldsSetType, McModelObject, McEmptySpace
 
@@ -10,6 +10,7 @@ from mcmatica_object_lib import McTabBox, McField, McFieldsSetType, McModelObjec
 #T = typing.TypeVar("T")
 
 class McFastHTMLWindow:
+    _identity: str
     _object_model: McModelObject
     _fast_html_app: FastHTML = None
     _load_data: typing.Callable[[int, int, typing.Optional[str], bool], typing.List[any]] = None
@@ -17,13 +18,25 @@ class McFastHTMLWindow:
 
 
     def __init__(self,
+                 identity: str,
                  app: FastHTML,
                  object_model: McModelObject,
                  load_data: typing.Callable[[int, int, typing.Optional[str], bool], typing.List[any]] = None
         ):
+        self._identity = identity
         self._fast_html_app = app
         self._object_model = object_model
         self._load_data = load_data
+
+        # Event Field path
+        route_event_field = Route(path=f"/{self._identity}/event_field",
+                  endpoint=self._fast_html_app._endp(self.event_field, None),
+                  methods=['PUT'],
+                  name=f"{self._identity}_event_field",
+                  include_in_schema=True)
+        self._fast_html_app.add_route(route_event_field)
+
+        print(self._fast_html_app.routes)
 
     def _get_record(self, record_num: int) -> any:
         if self._list is not None:
@@ -51,7 +64,7 @@ class McFastHTMLWindow:
     def _build_list(self):
         self_list: McFastHTMLTable = McFastHTMLTable(app=self._fast_html_app,
                                                  fields=self._object_model.fields_list.fields,
-                                                 identity='hero',
+                                                 identity=self._identity,
                                                  load_data= self._load_data,
                                                  num_rows=6)
         return self_list.render()
@@ -75,13 +88,13 @@ class McFastHTMLWindow:
     def render(self):
         container: ft.Div = ft.Div(cls="container-fluid vh-100 ")
         #ft.Label(self._object_model.name)
-        nav_div: ft.Nav = McFastHTMLFormNavBar(app=self._fast_html_app).render()
+        nav_div: ft.Nav = McFastHTMLFormNavBar(app=self._fast_html_app, caption=self._object_model.name).render()
         header_panel: ft.Div = ft.Div(nav_div,
                                  cls="row ", style={"height":"5vh"}
                                  )
         foot_panel: ft.Div = ft.Div("foot", cls="row", style={"height":"5vh"})
 
-        hidden_data_div: ft.Div = ft.Div("", id="hidden_data", hidden=True)
+        hidden_data_div: ft.Div = ft.Div("", id="hidden_data", hidden=False)
 
         container.set(hidden_data_div,
                       header_panel,
@@ -90,13 +103,18 @@ class McFastHTMLWindow:
 
         return container
 
+    async def event_field(self, sess):
+        print(sess)
 
 class McFastHTMLFormNavBar:
     _fast_html_app: FastHTML = None
+    _caption: str = None
 
     def __init__(self,
-                 app: FastHTML):
+                 app: FastHTML,
+                 caption: str):
         self._fast_html_app = app
+        self._caption = caption
 
     def render(self) -> ft.Nav:
         button_delete: ft.Li = ft.Li(ft.A("delete", cls="nav-link"), cls="nav-item")
@@ -105,7 +123,8 @@ class McFastHTMLFormNavBar:
         ul: ft.Ul = ft.Ul(button_delete,
                           button_save,
                           cls="navbar-nav")
-        div_navbar: ft.Div = ft.Div(ul,cls="collapse navbar-collapse")
+        nav_bar_caption: ft.Span = ft.Span(self._caption, cls="navbar-brand")
+        div_navbar: ft.Div = ft.Div(nav_bar_caption, ul, cls="container-fluid")
         nav: ft.Nav = ft.Nav(div_navbar,cls="navbar navbar-expand-lg bg-body-tertiary")
         return nav
 
@@ -256,7 +275,11 @@ class McFastHTMLFieldsSet:
                                                         cls="form-control",
                                                         id=f"{col.field_id}",
                                                         value=value,
-                                                        **dict(placeholder=col.label)),
+                                                        hx_trigger="change",
+                                                        hx_put=f"/{self._identity}/event_field",
+                                                        hx_target=f"#hidden_data",
+                                                        **{"placeholder":col.label,
+                                                            "hx-vals":"{'ciao':'mondo'}"}),
                                                cls="col-8"
                                                )
                 fields_div.append(ft.Div(ft.Div(label, input_element, cls="row"), cls="col"))

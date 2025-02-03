@@ -26,6 +26,11 @@ def empty_list():
     return []
 
 @dataclass
+class McFieldAction:
+    event: str
+    callback: typing.Callable[[str], str]
+
+@dataclass
 class McField:
     field_id: str
     label: str
@@ -33,6 +38,10 @@ class McField:
     required: bool
     visibility: McFieldVisibilityType
     input_type: McFieldInputElementType | None
+    actions: typing.List[McFieldAction] = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.actions = []
 
 @dataclass
 class McEmptySpace:
@@ -90,6 +99,7 @@ class McModelObjectBuilder:
     _mc_model_object: McModelObject = None
     _current_tab_box: McTabBox = None
     _current_fields_container: McFieldsContainer | McFieldsList = None
+    _current_field: McField | None = None
     _field_ids: typing.List[str] = None
 
     def __init__(self):
@@ -174,9 +184,11 @@ class McModelObjectBuilder:
         elif isinstance(field, McField):
             fld = field
 
+        self._current_field = None
         if isinstance(self._current_fields_container, McFieldsContainer):
             assert fld.field_id not in self._field_ids
             self._field_ids.append(fld.field_id)
+            self._current_field = fld
 
         self._current_fields_container.fields.append(fld)
         return self
@@ -186,6 +198,12 @@ class McModelObjectBuilder:
         assert self._current_fields_container is not None
         self._current_fields_container.fields.append(McEmptySpace())
         return self
+
+    def add_action(self, event: str, callback: typing.Callable[[str], str]):
+        assert self._current_field is not None
+        self._current_field.actions.append(McFieldAction(event=event, callback=callback))
+        return self
+
 
     def build(self) -> McModelObject:
         assert self._mc_model_object is not None
