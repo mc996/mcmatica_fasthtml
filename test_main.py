@@ -113,6 +113,7 @@ table: McFastHTMLTable = McFastHTMLTable(app=app,
 tab: McFastHTMLTabs = McFastHTMLTabs(app=app,
                                      identity="tabs1",
                                      tabs=hero.tabs,
+                                     object_model_name="Hero",
                                      load_data=mock_get_record)
 
 

@@ -14,8 +14,13 @@ function fill_inputs_form(container_id, data) {
       inputElement.value = json_data[key];
     }
   }
+}
 
-
+function getContext(container_id) {
+    console.log("getContext.container_id",container_id)
+    console.log("getContext.document.getElementById(container_id).innerHTML",document.getElementById(container_id).innerHTML)
+    let json_data = JSON.parse(document.getElementById(container_id).innerHTML)
+    return json_data
 }
 
 

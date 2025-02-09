@@ -86,13 +86,38 @@ class McModelObject:
     Attributi della classe:
     - db_model: riferemento alla classe SQLModel
     """
-    header_box: McFieldsContainer = None
-    tabs: typing.List[McTabBox] = None
-    fields_list: McFieldsContainer = None
-    name: str = None
+    _header_box: McFieldsContainer = None
+    _tabs: typing.List[McTabBox] = None
+    _fields_selection_table: McFieldsContainer = None
+    _name: str = None
+
 
     def __init__(self):
         self.tabs = []
+
+    @property
+    def name(self):
+        return self._name
+
+    def get_field(self, field_id: str):
+        field: McField = [f for f in self._header_box.fields if f.field_id == field_id][0]
+        if field is not None:
+            return field
+        else:
+            for tab in self._tabs:
+                for c in tab.field_sets:
+                    field = [f for f in c.fields if f.field_id == field_id][0]
+                    if field is not None:
+                        return field
+        return None
+
+
+
+    def execute_field_action(self, field_id: str, event: str):
+        field: McField = self.get_field(field_id=field_id)
+        action = [a for a in field.actions if a.event == event][0]
+        if action:
+            callable(action.callback)
 
 class McModelObjectBuilder:
 
@@ -107,7 +132,7 @@ class McModelObjectBuilder:
         self._field_ids = []
 
     def set_name(self, name: str):
-        self._mc_model_object.name = name
+        self._mc_model_object._name = name
         return self
 
     def add_tab_box(self, identity: str, caption: str):

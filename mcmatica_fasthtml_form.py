@@ -1,4 +1,4 @@
-from babel.plural import cldr_modulo
+import urllib.parse
 from fasthtml import ft
 from fasthtml import FastHTML
 import typing
@@ -29,7 +29,7 @@ class McFastHTMLWindow:
         self._load_data = load_data
 
         # Event Field path
-        route_event_field = Route(path=f"/{self._identity}/event_field",
+        route_event_field = Route(path=f"/{self._object_model.name}/event_field",
                   endpoint=self._fast_html_app._endp(self.event_field, None),
                   methods=['PUT'],
                   name=f"{self._identity}_event_field",
@@ -75,15 +75,17 @@ class McFastHTMLWindow:
                             caption=self._object_model.header_box.caption,
                             load_data=self._get_record,
                             identity=self._object_model.header_box.id,
+                            object_model_name=self._object_model.name,
                             collapsable=False,
                             layout_num_cols=2).render(record_num=1)
 
 
     def _build_tabs(self):
         return McFastHTMLTabs(app=self._fast_html_app,
-                                             identity="tabs",
-                                             tabs=self._object_model.tabs,
-                                             load_data=self._get_record).render()
+                              identity=self._identity,
+                              object_model_name=self._object_model.name,
+                              tabs=self._object_model.tabs,
+                              load_data=self._get_record).render()
 
     def render(self):
         container: ft.Div = ft.Div(cls="container-fluid vh-100 ")
@@ -94,7 +96,7 @@ class McFastHTMLWindow:
                                  )
         foot_panel: ft.Div = ft.Div("foot", cls="row", style={"height":"5vh"})
 
-        hidden_data_div: ft.Div = ft.Div("", id="hidden_data", hidden=False)
+        hidden_data_div: ft.Div = ft.Div("",id="hidden_data", hidden=False)
 
         container.set(hidden_data_div,
                       header_panel,
@@ -103,8 +105,27 @@ class McFastHTMLWindow:
 
         return container
 
-    async def event_field(self, sess):
-        print(sess)
+    async def event_field(self, body, sess):
+        print('event_field',sess, body)
+        print(body)
+        parsed_query = urllib.parse.parse_qs(body)
+
+        # Decode the JSON string within the "context" parameter
+        context_json = parsed_query.get("context", [None])[0]
+        field_id: str  = parsed_query.get("filed_id", [None])[0]
+        self._object_model.execute_field_action(field_id=field_id,event="change")
+
+
+        # if context_json:
+        #     context_data = json.loads(context_json)
+        # else:
+        #     context_data = {}
+        #
+        # # Extract the "country" parameter separately
+        # country = parsed_query.get("country", [None])[0]
+
+        # Print results
+        return context_json
 
 class McFastHTMLFormNavBar:
     _fast_html_app: FastHTML = None
@@ -133,17 +154,20 @@ class McFastHTMLTabs:
     _tabs: typing.List[McTabBox] = None
     _fast_html_app: FastHTML = None
     _identity: str = None
+    _object_model_name: str = None
     _load_data: typing.Callable[[int], typing.List[any]] = None
 
     def __init__(self,
                  app: FastHTML,
                  tabs: typing.List[McTabBox],
                  identity: str,
+                 object_model_name: str,
                  load_data: typing.Callable[[int], typing.List[any]]
                  ):
         self._fast_html_app = app
         self._tabs = tabs
         self._identity = identity
+        self._object_model_name = object_model_name
         self._load_data = load_data
 
 
@@ -154,6 +178,7 @@ class McFastHTMLTabs:
                 fields_set_list.append(McFastHTMLFieldsSet(app=self._fast_html_app,
                                     fields=fields_set.fields,
                                     caption=fields_set.caption,
+                                    object_model_name=self._object_model_name,
                                     load_data=self._load_data,
                                     identity=fields_set.id,
                                     collapsable=fields_set.collapsable,
@@ -234,17 +259,20 @@ class McFastHTMLFieldsSet:
     _fast_html_app: FastHTML = None
     _num_cols: int = None
     _collapsable: bool = None
+    _object_model_name: str = None
     _load_data: typing.Callable[[int], typing.List[any]] = None
 
     def __init__(self, app: FastHTML,
                  fields: typing.List[McField], identity: str,
                  caption: str,
+                 object_model_name: str,
                  load_data: typing.Callable[[int], typing.List[any]],
                  layout_num_cols: int = 1,
                  collapsable: bool = False):
         self._fast_html_app = app
         self._fields: typing.List[McField] = fields
         self._identity = identity
+        self._object_model_name = object_model_name
         self._caption = caption
         self._load_data = load_data
         self._num_cols = layout_num_cols
@@ -269,6 +297,8 @@ class McFastHTMLFieldsSet:
                     readonly = True
 
                 #id = f"{self._identity}-{col.field_id}",
+                # **{"placeholder":col.label,
+                #"hx-vals":'js:{...getContext("hidden_data")}'}
                 input_element: ft.Div = ft.Div(ft.Input("",
                                                         type="text" if col.input_type is None else col.input_type.value,
                                                         readonly=readonly,
@@ -276,10 +306,10 @@ class McFastHTMLFieldsSet:
                                                         id=f"{col.field_id}",
                                                         value=value,
                                                         hx_trigger="change",
-                                                        hx_put=f"/{self._identity}/event_field",
+                                                        hx_put=f"/{self._object_model_name}/event_field",
                                                         hx_target=f"#hidden_data",
                                                         **{"placeholder":col.label,
-                                                            "hx-vals":"{'ciao':'mondo'}"}),
+                                                            "hx-vals":f'js:{{"event":"change","field_id":"{col.field_id}","context":getContext("hidden_data")}}'}),
                                                cls="col-8"
                                                )
                 fields_div.append(ft.Div(ft.Div(label, input_element, cls="row"), cls="col"))
