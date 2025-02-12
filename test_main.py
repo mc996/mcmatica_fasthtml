@@ -85,7 +85,7 @@ hero: McModelObject = McModelObjectBuilder() \
     .add_empty_space() \
     .add_empty_space() \
     .add_field(field="name", label=i18n.t("general.name")) \
-.set_field_list(identity="hero_list") \
+.set_fields_selection_table(identity="hero_list") \
     .add_field(field="id", label=i18n.t("general.id"),width="70px") \
     .add_field(field="age", label=i18n.t("general.age"), width="70px") \
     .add_field(field="secret_name", label=i18n.t("general.password"), width="250px") \
@@ -103,7 +103,7 @@ hero: McModelObject = McModelObjectBuilder() \
 .build()
 
 table: McFastHTMLTable = McFastHTMLTable(app=app,
-                                         fields=hero.fields_list.fields,
+                                         fields=hero._fields_selection_table.fields,
                                          identity='hero',
                                          load_data=mock_get_data,
                                          num_rows=6)
@@ -112,7 +112,7 @@ table: McFastHTMLTable = McFastHTMLTable(app=app,
 
 tab: McFastHTMLTabs = McFastHTMLTabs(app=app,
                                      identity="tabs1",
-                                     tabs=hero.tabs,
+                                     tabs=hero._tabs,
                                      object_model_name="Hero",
                                      load_data=mock_get_record)
 

@@ -1,3 +1,4 @@
+import json
 import urllib.parse
 from fasthtml import ft
 from fasthtml import FastHTML
@@ -63,7 +64,7 @@ class McFastHTMLWindow:
 
     def _build_list(self):
         self_list: McFastHTMLTable = McFastHTMLTable(app=self._fast_html_app,
-                                                 fields=self._object_model.fields_list.fields,
+                                                 fields=self._object_model.fields_selection_table.fields,
                                                  identity=self._identity,
                                                  load_data= self._load_data,
                                                  num_rows=6)
@@ -111,9 +112,13 @@ class McFastHTMLWindow:
         parsed_query = urllib.parse.parse_qs(body)
 
         # Decode the JSON string within the "context" parameter
-        context_json = parsed_query.get("context", [None])[0]
-        field_id: str  = parsed_query.get("filed_id", [None])[0]
-        self._object_model.execute_field_action(field_id=field_id,event="change")
+        context_json = json.loads(parsed_query.get("context", [None])[0])
+        field_id: str  = parsed_query.get("field_id", [None])[0]
+        field_value: any = parsed_query.get(field_id, [None])[0]
+        self._object_model.execute_field_action(field_id=field_id,
+                                                event="change",
+                                                field_value=field_value,
+                                                context=context_json)
 
 
         # if context_json:

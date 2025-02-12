@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 import dataclasses
 import typing
@@ -28,7 +29,7 @@ def empty_list():
 @dataclass
 class McFieldAction:
     event: str
-    callback: typing.Callable[[str], str]
+    callback: typing.Callable[[any, dict], str]
 
 @dataclass
 class McField:
@@ -93,31 +94,44 @@ class McModelObject:
 
 
     def __init__(self):
-        self.tabs = []
+        self._tabs = []
 
     @property
     def name(self):
         return self._name
 
+    @property
+    def fields_selection_table(self):
+        return self._fields_selection_table
+
+    @property
+    def tabs(self):
+        return self._tabs
+
+    @property
+    def header_box(self):
+        return self._header_box
+
     def get_field(self, field_id: str):
-        field: McField = [f for f in self._header_box.fields if f.field_id == field_id][0]
-        if field is not None:
-            return field
+        field: [McField] = [f for f in self._header_box.fields if f.field_id == field_id]
+        if len(field) > 0:
+            return field[0]
         else:
             for tab in self._tabs:
                 for c in tab.field_sets:
-                    field = [f for f in c.fields if f.field_id == field_id][0]
-                    if field is not None:
-                        return field
+                    field = [f for f in c.fields if f.field_id == field_id]
+                    if len(field) > 0:
+                        return field[0]
         return None
 
 
 
-    def execute_field_action(self, field_id: str, event: str):
+    def execute_field_action(self, field_id: str, event: str, field_value: any, context: dict):
         field: McField = self.get_field(field_id=field_id)
-        action = [a for a in field.actions if a.event == event][0]
-        if action:
-            callable(action.callback)
+        action = [a for a in field.actions if a.event == event]
+        if len(action) > 0:
+            print(action[0].callback)
+            return action[0].callback(field_value, context)
 
 class McModelObjectBuilder:
 
@@ -137,7 +151,7 @@ class McModelObjectBuilder:
 
     def add_tab_box(self, identity: str, caption: str):
         self._current_tab_box = McTabBox(id=identity, caption=caption)
-        self._mc_model_object.tabs.append(self._current_tab_box)
+        self._mc_model_object._tabs.append(self._current_tab_box)
         return self
 
     def add_fields_set(self,
@@ -153,9 +167,9 @@ class McModelObjectBuilder:
         self._current_tab_box.field_sets.append(self._current_fields_container)
         return self
 
-    def set_field_list(self, identity: str):
+    def set_fields_selection_table(self, identity: str):
         self._current_fields_container = McFieldsList(id=identity, caption="")
-        self._mc_model_object.fields_list = self._current_fields_container
+        self._mc_model_object._fields_selection_table = self._current_fields_container
         return self
 
     def set_header_box(self, identity: str):
@@ -163,7 +177,7 @@ class McModelObjectBuilder:
                                                            caption="",
                                                            type=McFieldsSetType.BLOC,
                                                            collapsable=False)
-        self._mc_model_object.header_box = self._current_fields_container
+        self._mc_model_object._header_box = self._current_fields_container
         return self
 
     @overload
